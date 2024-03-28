@@ -1,5 +1,7 @@
 use macroquad::{miniquad::window, prelude::*};
-const THICKNESS = 3.0;
+
+const THICKNESS: f32 = 3.0;
+
 fn window_conf() -> Conf {
     Conf {
         window_title: String::from("BIG SPACE ROCKS"),

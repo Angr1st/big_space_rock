@@ -1,6 +1,7 @@
 use macroquad::prelude::*;
 
-const THICKNESS: f32 = 3.0;
+const THICKNESS: f32 = 2.5;
+const SCALE: f32 = 38.0;
 const LINE_COLOR: Color = WHITE;
 
 fn window_conf() -> Conf {
@@ -31,7 +32,7 @@ async fn main() {
             Vec2::new(0.3, -0.4),
             Vec2::new(-0.3, -0.4),
         ];
-        draw_lines(Vec2::splat(40.0), 16.0, &points);
+        draw_lines(Vec2::splat(40.0), SCALE, &points);
 
         next_frame().await;
     }
@@ -42,8 +43,10 @@ fn draw_lines(origin: Vec2, scale: f32, points: &[Vec2]) {
 
     let length = points.len();
     for i in 0..=length - 1 {
+        let wrap = (i + 1) % length;
+        //debug!("i {}, wrap: {}", i, wrap);
         let pos1 = points.get(i).unwrap();
-        let pos2 = points.get(i + 1 % length).unwrap();
+        let pos2 = points.get(wrap).unwrap();
         draw_line_vec2(apply(*pos1), apply(*pos2), THICKNESS, LINE_COLOR);
     }
 }

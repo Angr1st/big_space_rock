@@ -39,6 +39,7 @@ struct State {
     now: f32,
     delta: f32,
     ship: Ship,
+    render_thruster_plume: bool,
 }
 
 impl Default for State {
@@ -47,6 +48,7 @@ impl Default for State {
             now: 0.0,
             delta: 0.0,
             ship: Ship::default(),
+            render_thruster_plume: false,
         }
     }
 }
@@ -54,7 +56,7 @@ impl Default for State {
 fn update(state: &mut State) {
     // rotations / second
     const ROTATION_SPEED: f32 = 2.0;
-    const SHIP_SPEED: f32 = 32.0;
+    const SHIP_SPEED: f32 = 24.0;
 
     let keys = get_keys_down();
     if keys.contains(&KeyCode::A) {
@@ -65,27 +67,61 @@ fn update(state: &mut State) {
         state.ship.rotation -= state.delta * std::f32::consts::TAU * ROTATION_SPEED;
     }
 
-    let ship_direction: Vec2 = Vec2::from_angle(state.ship.rotation);
+    let corrected_ship_angle = state.ship.rotation + (std::f32::consts::PI * 0.5);
+    let ship_direction: Vec2 = Vec2::from_angle(corrected_ship_angle);
 
     if keys.contains(&KeyCode::W) {
         state.ship.velocity = state.ship.velocity + (ship_direction * state.delta * SHIP_SPEED);
+        state.render_thruster_plume = (((state.now.round() as i32) * 10) % 2) == 0;
+    } else {
+        state.render_thruster_plume = false;
     }
-
-    const DRAG: f32 = 0.03;
+    const DRAG: f32 = 0.015;
     const DRAG_MINUS_ONE: f32 = 1.0 - DRAG;
     state.ship.velocity = state.ship.velocity * DRAG_MINUS_ONE;
     state.ship.position = state.ship.position + state.ship.velocity;
+    let new_x = if state.ship.position.x <= 0.0 {
+        SIZE.x
+    } else {
+        state.ship.position.x % SIZE.x
+    };
+    let new_y = if state.ship.position.y <= 0.0 {
+        SIZE.y
+    } else {
+        state.ship.position.y % SIZE.y
+    };
+    // debug!("x:{}, y:{}", new_x, new_y);
+    state.ship.position = Vec2::new(new_x, new_y);
 }
 
 fn render(state: &State) {
-    let points = [
+    let ship_points = [
         Vec2::new(-0.4, -0.5),
         Vec2::new(0.0, 0.5),
         Vec2::new(0.4, -0.5),
         Vec2::new(0.3, -0.4),
         Vec2::new(-0.3, -0.4),
     ];
-    draw_lines(state.ship.position, SCALE, state.ship.rotation, &points);
+    draw_lines(
+        state.ship.position,
+        SCALE,
+        state.ship.rotation,
+        &ship_points,
+    );
+    if state.render_thruster_plume {
+        let thruster_points = [
+            Vec2::new(-0.3, -0.4),
+            Vec2::new(0.0, -1.0),
+            Vec2::new(0.3, -0.4),
+        ];
+
+        draw_lines(
+            state.ship.position,
+            SCALE,
+            state.ship.rotation,
+            &thruster_points,
+        );
+    }
 }
 
 #[macroquad::main(window_conf)]

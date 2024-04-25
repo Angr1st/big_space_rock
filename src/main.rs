@@ -1,6 +1,10 @@
 use std::ops::Mul;
 
-use macroquad::prelude::*;
+use fastrand::Rng;
+use macroquad::{
+    prelude::*,
+    rand::{gen_range, srand},
+};
 
 const THICKNESS: f32 = 2.5;
 const SCALE: f32 = 38.0;
@@ -34,12 +38,63 @@ impl Default for Ship {
         }
     }
 }
+struct Rock {
+    position: Vec2,
+    velocity: Vec2,
+    rotation: f32,
+    size: RockSize,
+}
+
+impl Default for Rock {
+    fn default() -> Self {
+        Self {
+            position: Vec2::ZERO,
+            velocity: Vec2::ZERO,
+            rotation: 0.0,
+            size: RockSize::Big,
+        }
+    }
+}
+
+enum RockSize {
+    Big,
+    Medium,
+    Small,
+}
+
+impl RockSize {
+    pub fn get_size(self: &Self) -> f32 {
+        match self {
+            RockSize::Big => SCALE * 3.0,
+            RockSize::Medium => SCALE * 1.4,
+            RockSize::Small => SCALE * 0.8,
+        }
+    }
+
+    pub fn new(size: f32) -> Self {
+        if size < 0.3 {
+            RockSize::Small
+        } else if size >= 0.3 && size < 0.59 {
+            RockSize::Medium
+        } else {
+            RockSize::Big
+        }
+    }
+}
+
+impl Into<RockSize> for f32 {
+    fn into(self) -> RockSize {
+        RockSize::new(self)
+    }
+}
 
 struct State {
     now: f32,
     delta: f32,
     ship: Ship,
     render_thruster_plume: bool,
+    rocks: Vec<Rock>,
+    random: Rng,
 }
 
 impl Default for State {
@@ -49,6 +104,8 @@ impl Default for State {
             delta: 0.0,
             ship: Ship::default(),
             render_thruster_plume: false,
+            rocks: vec![],
+            random: fastrand::Rng::new(),
         }
     }
 }
@@ -122,6 +179,24 @@ fn render(state: &State) {
             &thruster_points,
         );
     }
+
+    draw_space_rock(Vec2::splat(100.0), &RockSize::Big, 2333);
+    draw_space_rock(Vec2::splat(140.0), &RockSize::Big, 2433);
+    draw_space_rock(Vec2::splat(190.0), &RockSize::Big, 2313);
+}
+
+fn init_level(state: &mut State) {
+    for _ in 0..10 {
+        let angle = std::f32::consts::TAU * state.random.f32();
+        let direction = Vec2::from_angle(angle);
+        let rock = Rock {
+            position: Vec2::new(state.random.f32() * SIZE.x, state.random.f32() * SIZE.y),
+            velocity: direction * 3.0 * state.random.f32(),
+            size: state.random.f32().into(),
+            ..Default::default()
+        };
+        state.rocks.push(rock);
+    }
 }
 
 #[macroquad::main(window_conf)]
@@ -138,6 +213,25 @@ async fn main() {
         render(&state);
         next_frame().await;
     }
+}
+
+fn draw_space_rock(pos: Vec2, size: &RockSize, seed: u64) {
+    let mut random = Rng::with_seed(seed);
+    let mut points: Vec<Vec2> = Vec::with_capacity(16);
+    let n = gen_range(8, 15);
+    for i in 0..n {
+        let mut radius = 0.3 + (0.2 * random.f32());
+        if random.f32() < 0.2 {
+            radius -= 0.2;
+        }
+        let angle = i as f32 * (std::f32::consts::TAU / n as f32)
+            + (std::f32::consts::PI * 0.125 * random.f32());
+        let direction = Vec2::from_angle(angle);
+        // debug!("radius: {}, angle: {}", radius, angle);
+        points.push(direction * radius);
+    }
+    // debug!("points: {}", points.len());
+    draw_lines(pos, size.get_size(), 0.0, &points);
 }
 
 fn draw_lines(origin: Vec2, scale: f32, rotation: f32, points: &[Vec2]) {

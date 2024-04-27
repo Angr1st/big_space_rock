@@ -1,10 +1,8 @@
-use std::ops::Mul;
+use std::{ops::Mul, time::SystemTime};
 
-use fastrand::Rng;
-use macroquad::{
-    prelude::*,
-    rand::{gen_range, srand},
-};
+use ::rand::Rng;
+use macroquad::prelude::*;
+use rand_xoshiro::{rand_core::SeedableRng, Xoshiro256PlusPlus, Xoshiro256StarStar};
 
 const THICKNESS: f32 = 2.5;
 const SCALE: f32 = 38.0;
@@ -43,6 +41,7 @@ struct Rock {
     velocity: Vec2,
     rotation: f32,
     size: RockSize,
+    seed: u64,
 }
 
 impl Default for Rock {
@@ -52,6 +51,7 @@ impl Default for Rock {
             velocity: Vec2::ZERO,
             rotation: 0.0,
             size: RockSize::Big,
+            seed: 0,
         }
     }
 }
@@ -94,18 +94,22 @@ struct State {
     ship: Ship,
     render_thruster_plume: bool,
     rocks: Vec<Rock>,
-    random: Rng,
+    random: Xoshiro256PlusPlus,
 }
 
 impl Default for State {
     fn default() -> Self {
+        let seed = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .expect("We should be after 1970")
+            .as_secs();
         Self {
             now: 0.0,
             delta: 0.0,
             ship: Ship::default(),
             render_thruster_plume: false,
             rocks: vec![],
-            random: fastrand::Rng::new(),
+            random: Xoshiro256PlusPlus::seed_from_u64(seed),
         }
     }
 }
@@ -137,18 +141,19 @@ fn update(state: &mut State) {
     const DRAG_MINUS_ONE: f32 = 1.0 - DRAG;
     state.ship.velocity = state.ship.velocity * DRAG_MINUS_ONE;
     state.ship.position = state.ship.position + state.ship.velocity;
-    let new_x = if state.ship.position.x <= 0.0 {
-        SIZE.x
-    } else {
-        state.ship.position.x % SIZE.x
-    };
-    let new_y = if state.ship.position.y <= 0.0 {
-        SIZE.y
-    } else {
-        state.ship.position.y % SIZE.y
-    };
+    state.ship.position = keep_in_frame(state.ship.position);
+
+    for rock in state.rocks.iter_mut() {
+        rock.position = rock.position + rock.velocity;
+        rock.position = keep_in_frame(rock.position);
+    }
+}
+
+fn keep_in_frame(vec: Vec2) -> Vec2 {
+    let new_x = if vec.x <= 0.0 { SIZE.x } else { vec.x % SIZE.x };
+    let new_y = if vec.y <= 0.0 { SIZE.y } else { vec.y % SIZE.y };
     // debug!("x:{}, y:{}", new_x, new_y);
-    state.ship.position = Vec2::new(new_x, new_y);
+    Vec2::new(new_x, new_y)
 }
 
 fn render(state: &State) {
@@ -180,19 +185,23 @@ fn render(state: &State) {
         );
     }
 
-    draw_space_rock(Vec2::splat(100.0), &RockSize::Big, 2333);
-    draw_space_rock(Vec2::splat(140.0), &RockSize::Big, 2433);
-    draw_space_rock(Vec2::splat(190.0), &RockSize::Big, 2313);
+    for rock in state.rocks.iter() {
+        draw_space_rock(rock.position, &rock.size, rock.seed);
+    }
 }
 
 fn init_level(state: &mut State) {
-    for _ in 0..10 {
-        let angle = std::f32::consts::TAU * state.random.f32();
+    for _ in 0..20 {
+        let angle = std::f32::consts::TAU * state.random.gen::<f32>();
         let direction = Vec2::from_angle(angle);
         let rock = Rock {
-            position: Vec2::new(state.random.f32() * SIZE.x, state.random.f32() * SIZE.y),
-            velocity: direction * 3.0 * state.random.f32(),
-            size: state.random.f32().into(),
+            position: Vec2::new(
+                state.random.gen::<f32>() * SIZE.x,
+                state.random.gen::<f32>() * SIZE.y,
+            ),
+            velocity: direction * 3.0 * state.random.gen::<f32>(),
+            size: state.random.gen::<f32>().into(),
+            seed: state.random.gen::<u64>(),
             ..Default::default()
         };
         state.rocks.push(rock);
@@ -203,6 +212,8 @@ fn init_level(state: &mut State) {
 async fn main() {
     // debug!("Helloaaaa, world!\n");
     let mut state = State::default();
+
+    init_level(&mut state);
 
     loop {
         clear_background(BLACK);
@@ -216,21 +227,21 @@ async fn main() {
 }
 
 fn draw_space_rock(pos: Vec2, size: &RockSize, seed: u64) {
-    let mut random = Rng::with_seed(seed);
+    let mut random = Xoshiro256StarStar::seed_from_u64(seed);
     let mut points: Vec<Vec2> = Vec::with_capacity(16);
-    let n = gen_range(8, 15);
+    let n = random.gen_range(8..15);
     for i in 0..n {
-        let mut radius = 0.3 + (0.2 * random.f32());
-        if random.f32() < 0.2 {
+        let mut radius = 0.3 + (0.2 * random.gen::<f32>());
+        if random.gen::<f32>() < 0.2 {
             radius -= 0.2;
         }
         let angle = i as f32 * (std::f32::consts::TAU / n as f32)
-            + (std::f32::consts::PI * 0.125 * random.f32());
+            + (std::f32::consts::PI * 0.125 * random.gen::<f32>());
         let direction = Vec2::from_angle(angle);
-        // debug!("radius: {}, angle: {}", radius, angle);
+        debug!("radius: {}, angle: {}", radius, angle);
         points.push(direction * radius);
     }
-    // debug!("points: {}", points.len());
+    debug!("points: {}", points.len());
     draw_lines(pos, size.get_size(), 0.0, &points);
 }
 

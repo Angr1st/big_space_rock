@@ -25,6 +25,7 @@ struct Ship {
     position: Vec2,
     velocity: Vec2,
     rotation: f32,
+    alive: bool,
 }
 
 impl Default for Ship {
@@ -33,6 +34,7 @@ impl Default for Ship {
             position: SIZE.mul(0.5),
             velocity: Vec2::ZERO,
             rotation: 0.0,
+            alive: true,
         }
     }
 }
@@ -68,6 +70,14 @@ impl RockSize {
             RockSize::Big => SCALE * 3.0,
             RockSize::Medium => SCALE * 1.4,
             RockSize::Small => SCALE * 0.8,
+        }
+    }
+
+    pub fn get_velocity(self: &Self) -> f32 {
+        match self {
+            RockSize::Big => 0.75,
+            RockSize::Medium => 1.0,
+            RockSize::Small => 1.6,
         }
     }
 
@@ -146,6 +156,14 @@ fn update(state: &mut State) {
     for rock in state.rocks.iter_mut() {
         rock.position = rock.position + rock.velocity;
         rock.position = keep_in_frame(rock.position);
+
+        if Vec2::distance(rock.position, state.ship.position) < rock.size.get_size() {
+            state.ship.alive = false;
+        }
+    }
+
+    if !state.ship.alive {
+        reset_level(state);
     }
 }
 
@@ -190,17 +208,24 @@ fn render(state: &State) {
     }
 }
 
-fn init_level(state: &mut State) {
+fn reset_level(state: &mut State) {
+    state.ship = Ship::default();
+
+    if !state.rocks.is_empty() {
+        state.rocks.clear();
+    }
+
     for _ in 0..20 {
         let angle = std::f32::consts::TAU * state.random.gen::<f32>();
         let direction = Vec2::from_angle(angle);
+        let rock_size: RockSize = state.random.gen::<f32>().into();
         let rock = Rock {
             position: Vec2::new(
                 state.random.gen::<f32>() * SIZE.x,
                 state.random.gen::<f32>() * SIZE.y,
             ),
-            velocity: direction * 3.0 * state.random.gen::<f32>(),
-            size: state.random.gen::<f32>().into(),
+            velocity: direction * 3.0 * state.random.gen::<f32>() * rock_size.get_velocity(),
+            size: rock_size,
             seed: state.random.gen::<u64>(),
             ..Default::default()
         };
@@ -213,7 +238,7 @@ async fn main() {
     // debug!("Helloaaaa, world!\n");
     let mut state = State::default();
 
-    init_level(&mut state);
+    reset_level(&mut state);
 
     loop {
         clear_background(BLACK);

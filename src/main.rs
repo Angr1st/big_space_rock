@@ -21,11 +21,26 @@ fn window_conf() -> Conf {
     }
 }
 
+#[derive(Clone, Copy)]
+enum ShipStatus {
+    Alive,
+    Dead { death_timer: f32 },
+}
+
+impl Into<bool> for ShipStatus {
+    fn into(self) -> bool {
+        match self {
+            ShipStatus::Alive => true,
+            _ => false,
+        }
+    }
+}
+
 struct Ship {
     position: Vec2,
     velocity: Vec2,
     rotation: f32,
-    alive: bool,
+    status: ShipStatus,
 }
 
 impl Default for Ship {
@@ -34,7 +49,7 @@ impl Default for Ship {
             position: SIZE.mul(0.5),
             velocity: Vec2::ZERO,
             rotation: 0.0,
-            alive: true,
+            status: ShipStatus::Alive,
         }
     }
 }
@@ -158,11 +173,13 @@ fn update(state: &mut State) {
         rock.position = keep_in_frame(rock.position);
 
         if Vec2::distance(rock.position, state.ship.position) < rock.size.get_size() {
-            state.ship.alive = false;
+            state.ship.status = ShipStatus::Dead {
+                death_timer: state.now,
+            };
         }
     }
 
-    if !state.ship.alive {
+    if !Into::<bool>::into(state.ship.status) {
         reset_level(state);
     }
 }

@@ -22,9 +22,15 @@ fn window_conf() -> Conf {
 }
 
 #[derive(Clone, Copy)]
+struct DeathTime {
+    death_timer: f32,
+    death_time: f32,
+}
+
+#[derive(Clone, Copy)]
 enum ShipStatus {
     Alive,
-    Dead { death_timer: f32 },
+    Dead(DeathTime),
 }
 
 impl Into<bool> for ShipStatus {
@@ -119,6 +125,7 @@ struct State {
     ship: Ship,
     render_thruster_plume: bool,
     rocks: Vec<Rock>,
+    particles: Vec<Particle>,
     random: Xoshiro256PlusPlus,
 }
 
@@ -134,9 +141,33 @@ impl Default for State {
             ship: Ship::default(),
             render_thruster_plume: false,
             rocks: vec![],
+            particles: vec![],
             random: Xoshiro256PlusPlus::seed_from_u64(seed),
         }
     }
+}
+
+struct LineParticle {
+    rotation: f32,
+    length: f32,
+}
+
+impl LineParticle {
+    pub fn new(rotation: f32, length: f32) -> Self {
+        Self { rotation, length }
+    }
+}
+
+enum ParticleType {
+    Line(LineParticle),
+    Dot,
+}
+
+struct Particle {
+    position: Vec2,
+    velocity: Vec2,
+    time_to_live: f32,
+    particle_type: ParticleType,
 }
 
 fn update(state: &mut State) {
@@ -172,15 +203,22 @@ fn update(state: &mut State) {
         rock.position = rock.position + rock.velocity;
         rock.position = keep_in_frame(rock.position);
 
-        if Vec2::distance(rock.position, state.ship.position) < rock.size.get_size() {
-            state.ship.status = ShipStatus::Dead {
-                death_timer: state.now,
-            };
+        if Into::<bool>::into(state.ship.status)
+            && Vec2::distance(rock.position, state.ship.position) < rock.size.get_size()
+        {
+            // debug!("You died!");
+            state.ship.status = ShipStatus::Dead(DeathTime {
+                death_timer: state.now + 3.0,
+                death_time: state.now,
+            });
         }
     }
 
-    if !Into::<bool>::into(state.ship.status) {
-        reset_level(state);
+    if let ShipStatus::Dead(value) = state.ship.status {
+        // debug!("We dead!");
+        if state.now > value.death_timer {
+            reset_level(state);
+        }
     }
 }
 
@@ -280,10 +318,10 @@ fn draw_space_rock(pos: Vec2, size: &RockSize, seed: u64) {
         let angle = i as f32 * (std::f32::consts::TAU / n as f32)
             + (std::f32::consts::PI * 0.125 * random.gen::<f32>());
         let direction = Vec2::from_angle(angle);
-        debug!("radius: {}, angle: {}", radius, angle);
+        // debug!("radius: {}, angle: {}", radius, angle);
         points.push(direction * radius);
     }
-    debug!("points: {}", points.len());
+    // debug!("points: {}", points.len());
     draw_lines(pos, size.get_size(), 0.0, &points);
 }
 

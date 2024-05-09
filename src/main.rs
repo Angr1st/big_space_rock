@@ -262,9 +262,13 @@ fn render(state: &State) {
         draw_space_rock(rock.position, &rock.size, rock.seed);
     }
 
+    let line_points = [Vec2::new(-0.5, 0.0), Vec2::new(0.5, 0.0)];
+
     for particle in state.particles.iter() {
         match &particle.particle_type {
-            ParticleType::Line(_line) => {}
+            ParticleType::Line(line) => {
+                draw_lines(particle.position, line.length, line.rotation, &line_points)
+            }
             ParticleType::Dot => {}
         };
     }

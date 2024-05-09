@@ -261,6 +261,13 @@ fn render(state: &State) {
     for rock in state.rocks.iter() {
         draw_space_rock(rock.position, &rock.size, rock.seed);
     }
+
+    for particle in state.particles.iter() {
+        match &particle.particle_type {
+            ParticleType::Line(_line) => {}
+            ParticleType::Dot => {}
+        };
+    }
 }
 
 fn reset_level(state: &mut State) {

@@ -65,6 +65,7 @@ struct Rock {
     rotation: f32,
     size: RockSize,
     seed: u64,
+    removed: bool,
 }
 
 impl Default for Rock {
@@ -75,6 +76,7 @@ impl Default for Rock {
             rotation: 0.0,
             size: RockSize::Big,
             seed: 0,
+            removed: false,
         }
     }
 }
@@ -91,6 +93,14 @@ impl RockSize {
             RockSize::Big => SCALE * 3.0,
             RockSize::Medium => SCALE * 1.4,
             RockSize::Small => SCALE * 0.8,
+        }
+    }
+
+    pub fn get_collision_scale(self: &Self) -> f32 {
+        match self {
+            RockSize::Big => 0.4,
+            RockSize::Medium => 0.65,
+            RockSize::Small => 1.0,
         }
     }
 
@@ -126,6 +136,7 @@ struct State {
     render_thruster_plume: bool,
     rocks: Vec<Rock>,
     particles: Vec<Particle>,
+    projectiles: Vec<Projectile>,
     random: Xoshiro256PlusPlus,
 }
 
@@ -142,6 +153,7 @@ impl Default for State {
             render_thruster_plume: false,
             rocks: vec![],
             particles: vec![],
+            projectiles: vec![],
             random: Xoshiro256PlusPlus::seed_from_u64(seed),
         }
     }
@@ -158,9 +170,31 @@ impl LineParticle {
     }
 }
 
+impl Into<ParticleType> for LineParticle {
+    fn into(self) -> ParticleType {
+        ParticleType::Line(self)
+    }
+}
+
+struct DotParticle {
+    radius: f32,
+}
+
+impl DotParticle {
+    pub fn new(radius: f32) -> Self {
+        Self { radius }
+    }
+}
+
+impl Into<ParticleType> for DotParticle {
+    fn into(self) -> ParticleType {
+        ParticleType::Dot(self)
+    }
+}
+
 enum ParticleType {
     Line(LineParticle),
-    Dot,
+    Dot(DotParticle),
 }
 
 struct Particle {
@@ -170,49 +204,109 @@ struct Particle {
     particle_type: ParticleType,
 }
 
+struct Projectile {
+    position: Vec2,
+    velocity: Vec2,
+    time_to_live: f32,
+}
+
 fn update(state: &mut State) {
-    // rotations / second
-    const ROTATION_SPEED: f32 = 2.0;
-    const SHIP_SPEED: f32 = 24.0;
+    if Into::<bool>::into(state.ship.status) {
+        // rotations / second
+        const ROTATION_SPEED: f32 = 2.0;
+        const SHIP_SPEED: f32 = 24.0;
 
-    let keys = get_keys_down();
-    if keys.contains(&KeyCode::A) {
-        state.ship.rotation += state.delta * std::f32::consts::TAU * ROTATION_SPEED;
+        let keys = get_keys_down();
+        if keys.contains(&KeyCode::A) {
+            state.ship.rotation += state.delta * std::f32::consts::TAU * ROTATION_SPEED;
+        }
+
+        if keys.contains(&KeyCode::D) {
+            state.ship.rotation -= state.delta * std::f32::consts::TAU * ROTATION_SPEED;
+        }
+
+        let corrected_ship_angle = state.ship.rotation + (std::f32::consts::PI * 0.5);
+        let ship_direction: Vec2 = Vec2::from_angle(corrected_ship_angle);
+
+        if keys.contains(&KeyCode::W) {
+            state.ship.velocity = state.ship.velocity + (ship_direction * state.delta * SHIP_SPEED);
+            state.render_thruster_plume = (((state.now.round() as i32) * 10) % 2) == 0;
+        } else {
+            state.render_thruster_plume = false;
+        }
+        const DRAG: f32 = 0.015;
+        const DRAG_MINUS_ONE: f32 = 1.0 - DRAG;
+        state.ship.velocity = state.ship.velocity * DRAG_MINUS_ONE;
+        state.ship.position = state.ship.position + state.ship.velocity;
+        state.ship.position = keep_in_frame(state.ship.position);
+
+        if keys.contains(&KeyCode::Space) {
+            let position = state.ship.position + (ship_direction * (SCALE * 0.55));
+            let velocity = ship_direction * 10.0;
+            let projetile = Projectile {
+                position,
+                velocity,
+                time_to_live: 1.0,
+            };
+            state.projectiles.push(projetile);
+        }
     }
-
-    if keys.contains(&KeyCode::D) {
-        state.ship.rotation -= state.delta * std::f32::consts::TAU * ROTATION_SPEED;
-    }
-
-    let corrected_ship_angle = state.ship.rotation + (std::f32::consts::PI * 0.5);
-    let ship_direction: Vec2 = Vec2::from_angle(corrected_ship_angle);
-
-    if keys.contains(&KeyCode::W) {
-        state.ship.velocity = state.ship.velocity + (ship_direction * state.delta * SHIP_SPEED);
-        state.render_thruster_plume = (((state.now.round() as i32) * 10) % 2) == 0;
-    } else {
-        state.render_thruster_plume = false;
-    }
-    const DRAG: f32 = 0.015;
-    const DRAG_MINUS_ONE: f32 = 1.0 - DRAG;
-    state.ship.velocity = state.ship.velocity * DRAG_MINUS_ONE;
-    state.ship.position = state.ship.position + state.ship.velocity;
-    state.ship.position = keep_in_frame(state.ship.position);
 
     for rock in state.rocks.iter_mut() {
         rock.position = rock.position + rock.velocity;
         rock.position = keep_in_frame(rock.position);
 
         if Into::<bool>::into(state.ship.status)
-            && Vec2::distance(rock.position, state.ship.position) < rock.size.get_size()
+            && Vec2::distance(rock.position, state.ship.position)
+                < rock.size.get_size() * rock.size.get_collision_scale()
         {
             // debug!("You died!");
             state.ship.status = ShipStatus::Dead(DeathTime {
                 death_timer: state.now + 3.0,
                 death_time: state.now,
             });
+
+            for _ in 0..5 {
+                let angle = std::f32::consts::TAU * state.random.gen::<f32>();
+                let direction = Vec2::from_angle(angle);
+                let position = state.ship.position
+                    + Vec2::new(state.random.gen::<f32>(), state.random.gen::<f32>());
+                let velocity = direction * 2.0 * state.random.gen::<f32>();
+                let time_to_live = 3.0 + state.random.gen::<f32>();
+                let line_particle = LineParticle::new(
+                    std::f32::consts::TAU * state.random.gen::<f32>(),
+                    SCALE * (0.6 + (0.4 * state.random.gen::<f32>())),
+                );
+                let particle = Particle {
+                    position,
+                    velocity,
+                    time_to_live,
+                    particle_type: line_particle.into(),
+                };
+                state.particles.push(particle);
+            }
         }
     }
+
+    for particle in state.particles.iter_mut() {
+        particle.position = particle.position + particle.velocity;
+        particle.position = keep_in_frame(particle.position);
+        particle.time_to_live -= state.delta;
+    }
+
+    for projectile in state.projectiles.iter_mut() {
+        projectile.position = projectile.position + projectile.velocity;
+        projectile.position = keep_in_frame(projectile.position);
+        projectile.time_to_live -= state.delta;
+    }
+
+    state.rocks.retain(|rock| !rock.removed);
+    state
+        .particles
+        .retain(|particle| particle.time_to_live > 0.0);
+    state
+        .projectiles
+        .retain(|projectile| projectile.time_to_live > 0.0);
 
     if let ShipStatus::Dead(value) = state.ship.status {
         // debug!("We dead!");
@@ -230,32 +324,34 @@ fn keep_in_frame(vec: Vec2) -> Vec2 {
 }
 
 fn render(state: &State) {
-    let ship_points = [
-        Vec2::new(-0.4, -0.5),
-        Vec2::new(0.0, 0.5),
-        Vec2::new(0.4, -0.5),
-        Vec2::new(0.3, -0.4),
-        Vec2::new(-0.3, -0.4),
-    ];
-    draw_lines(
-        state.ship.position,
-        SCALE,
-        state.ship.rotation,
-        &ship_points,
-    );
-    if state.render_thruster_plume {
-        let thruster_points = [
-            Vec2::new(-0.3, -0.4),
-            Vec2::new(0.0, -1.0),
+    if Into::<bool>::into(state.ship.status) {
+        let ship_points = [
+            Vec2::new(-0.4, -0.5),
+            Vec2::new(0.0, 0.5),
+            Vec2::new(0.4, -0.5),
             Vec2::new(0.3, -0.4),
+            Vec2::new(-0.3, -0.4),
         ];
-
         draw_lines(
             state.ship.position,
             SCALE,
             state.ship.rotation,
-            &thruster_points,
+            &ship_points,
         );
+        if state.render_thruster_plume {
+            let thruster_points = [
+                Vec2::new(-0.3, -0.4),
+                Vec2::new(0.0, -1.0),
+                Vec2::new(0.3, -0.4),
+            ];
+
+            draw_lines(
+                state.ship.position,
+                SCALE,
+                state.ship.rotation,
+                &thruster_points,
+            );
+        }
     }
 
     for rock in state.rocks.iter() {
@@ -269,14 +365,23 @@ fn render(state: &State) {
             ParticleType::Line(line) => {
                 draw_lines(particle.position, line.length, line.rotation, &line_points)
             }
-            ParticleType::Dot => {}
+            ParticleType::Dot(dot) => {
+                draw_circle_vec2(particle.position, dot.radius, THICKNESS, LINE_COLOR)
+            }
         };
+    }
+
+    for projectile in state.projectiles.iter() {
+        draw_circle_vec2(
+            projectile.position,
+            (SCALE * 0.05).max(1.0),
+            THICKNESS,
+            LINE_COLOR,
+        )
     }
 }
 
-fn reset_level(state: &mut State) {
-    state.ship = Ship::default();
-
+fn reset_asteroids(state: &mut State) {
     if !state.rocks.is_empty() {
         state.rocks.clear();
     }
@@ -299,12 +404,17 @@ fn reset_level(state: &mut State) {
     }
 }
 
+fn reset_level(state: &mut State) {
+    state.ship = Ship::default();
+}
+
 #[macroquad::main(window_conf)]
 async fn main() {
     // debug!("Helloaaaa, world!\n");
     let mut state = State::default();
 
     reset_level(&mut state);
+    reset_asteroids(&mut state);
 
     loop {
         clear_background(BLACK);
@@ -351,6 +461,10 @@ fn draw_lines(origin: Vec2, scale: f32, rotation: f32, points: &[Vec2]) {
 }
 
 //fn draw_ship(pos: Vec2) {}
+
+fn draw_circle_vec2(pos: Vec2, radius: f32, thickness: f32, color: Color) {
+    draw_circle_lines(pos.x, pos.y, radius, thickness, color);
+}
 
 fn draw_line_vec2(pos1: Vec2, pos2: Vec2, thickness: f32, color: Color) {
     draw_line(pos1.x, pos1.y, pos2.x, pos2.y, thickness, color);

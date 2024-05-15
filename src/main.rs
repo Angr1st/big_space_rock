@@ -81,6 +81,7 @@ impl Default for Rock {
     }
 }
 
+#[derive(PartialEq, Clone, Copy)]
 enum RockSize {
     Big,
     Medium,
@@ -207,7 +208,40 @@ struct Particle {
 struct Projectile {
     position: Vec2,
     velocity: Vec2,
-    time_to_live: f32,
+    state: ProjectileState,
+}
+
+impl Projectile {
+    fn is_alive(self: &Self) -> bool {
+        let state = &self.state;
+        state.into()
+    }
+}
+
+enum ProjectileState {
+    Alive { time_to_live: f32 },
+    Dead,
+}
+
+impl From<f32> for ProjectileState {
+    fn from(value: f32) -> Self {
+        if value > 0.0 {
+            Self::Alive {
+                time_to_live: value,
+            }
+        } else {
+            Self::Dead
+        }
+    }
+}
+
+impl From<&ProjectileState> for bool {
+    fn from(value: &ProjectileState) -> Self {
+        match value {
+            ProjectileState::Dead => false,
+            ProjectileState::Alive { time_to_live } => time_to_live > &0.0,
+        }
+    }
 }
 
 fn update(state: &mut State) {
@@ -240,13 +274,14 @@ fn update(state: &mut State) {
         state.ship.position = state.ship.position + state.ship.velocity;
         state.ship.position = keep_in_frame(state.ship.position);
 
-        if keys.contains(&KeyCode::Space) {
+        let keys_pressed = get_keys_pressed();
+        if keys_pressed.contains(&KeyCode::Space) || is_mouse_button_pressed(MouseButton::Left) {
             let position = state.ship.position + (ship_direction * (SCALE * 0.55));
             let velocity = ship_direction * 10.0;
             let projetile = Projectile {
                 position,
                 velocity,
-                time_to_live: 1.0,
+                state: ProjectileState::Alive { time_to_live: 1.0 },
             };
             state.projectiles.push(projetile);
         }
@@ -256,6 +291,7 @@ fn update(state: &mut State) {
         rock.position = rock.position + rock.velocity;
         rock.position = keep_in_frame(rock.position);
 
+        // Check for ship v rock collision
         if Into::<bool>::into(state.ship.status)
             && Vec2::distance(rock.position, state.ship.position)
                 < rock.size.get_size() * rock.size.get_collision_scale()
@@ -286,6 +322,11 @@ fn update(state: &mut State) {
                 state.particles.push(particle);
             }
         }
+
+        // Check for projectile v rock collision
+        // if  {
+
+        // }
     }
 
     for particle in state.particles.iter_mut() {
@@ -297,16 +338,17 @@ fn update(state: &mut State) {
     for projectile in state.projectiles.iter_mut() {
         projectile.position = projectile.position + projectile.velocity;
         projectile.position = keep_in_frame(projectile.position);
-        projectile.time_to_live -= state.delta;
+        if let ProjectileState::Alive { mut time_to_live } = projectile.state {
+            time_to_live -= state.delta;
+            projectile.state = time_to_live.into();
+        }
     }
 
     state.rocks.retain(|rock| !rock.removed);
     state
         .particles
         .retain(|particle| particle.time_to_live > 0.0);
-    state
-        .projectiles
-        .retain(|projectile| projectile.time_to_live > 0.0);
+    state.projectiles.retain(|projectile| projectile.is_alive());
 
     if let ShipStatus::Dead(value) = state.ship.status {
         // debug!("We dead!");
@@ -314,6 +356,37 @@ fn update(state: &mut State) {
             reset_level(state);
         }
     }
+}
+
+fn hit_rock(state: &mut State, rock: &mut Rock, impact: Option<Vec2>) -> Option<Vec<Rock>> {
+    rock.removed = true;
+    if rock.size == RockSize::Small {
+        return Option::None;
+    }
+
+    let new_size = match rock.size {
+        RockSize::Big => RockSize::Medium,
+        RockSize::Medium => RockSize::Small,
+        RockSize::Small => unreachable!(),
+    };
+    let new_direction = rock.velocity.normalize();
+    let impact = impact.map_or(Vec2::ZERO, |imp| imp * 1.5);
+    let mut new_rocks = vec![];
+    for _ in 0..2 {
+        let new_rock = Rock {
+            position: Vec2::new(
+                state.random.gen::<f32>() * SIZE.x,
+                state.random.gen::<f32>() * SIZE.y,
+            ),
+            velocity: (new_direction * 1.5 * state.random.gen::<f32>() * rock.size.get_velocity())
+                + impact,
+            size: new_size,
+            seed: state.random.gen::<u64>(),
+            ..Default::default()
+        };
+        new_rocks.push(new_rock);
+    }
+    Some(new_rocks)
 }
 
 fn keep_in_frame(vec: Vec2) -> Vec2 {
@@ -365,19 +438,12 @@ fn render(state: &State) {
             ParticleType::Line(line) => {
                 draw_lines(particle.position, line.length, line.rotation, &line_points)
             }
-            ParticleType::Dot(dot) => {
-                draw_circle_vec2(particle.position, dot.radius, THICKNESS, LINE_COLOR)
-            }
+            ParticleType::Dot(dot) => draw_circle_vec2(particle.position, dot.radius, LINE_COLOR),
         };
     }
 
     for projectile in state.projectiles.iter() {
-        draw_circle_vec2(
-            projectile.position,
-            (SCALE * 0.05).max(1.0),
-            THICKNESS,
-            LINE_COLOR,
-        )
+        draw_circle_vec2(projectile.position, (SCALE * 0.05).max(1.0), LINE_COLOR)
     }
 }
 
@@ -462,7 +528,11 @@ fn draw_lines(origin: Vec2, scale: f32, rotation: f32, points: &[Vec2]) {
 
 //fn draw_ship(pos: Vec2) {}
 
-fn draw_circle_vec2(pos: Vec2, radius: f32, thickness: f32, color: Color) {
+fn draw_circle_vec2(pos: Vec2, radius: f32, color: Color) {
+    draw_circle(pos.x, pos.y, radius, color);
+}
+
+fn draw_circle_line_vec2(pos: Vec2, radius: f32, thickness: f32, color: Color) {
     draw_circle_lines(pos.x, pos.y, radius, thickness, color);
 }
 

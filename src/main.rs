@@ -33,9 +33,9 @@ enum ShipStatus {
     Dead(DeathTime),
 }
 
-impl Into<bool> for ShipStatus {
-    fn into(self) -> bool {
-        match self {
+impl From<&ShipStatus> for bool {
+    fn from(value: &ShipStatus) -> Self {
+        match value {
             ShipStatus::Alive => true,
             _ => false,
         }
@@ -124,9 +124,9 @@ impl RockSize {
     }
 }
 
-impl Into<RockSize> for f32 {
-    fn into(self) -> RockSize {
-        RockSize::new(self)
+impl From<f32> for RockSize {
+    fn from(value: f32) -> Self {
+        RockSize::new(value)
     }
 }
 
@@ -171,9 +171,9 @@ impl LineParticle {
     }
 }
 
-impl Into<ParticleType> for LineParticle {
-    fn into(self) -> ParticleType {
-        ParticleType::Line(self)
+impl From<LineParticle> for ParticleType {
+    fn from(value: LineParticle) -> Self {
+        ParticleType::Line(value)
     }
 }
 
@@ -187,9 +187,9 @@ impl DotParticle {
     }
 }
 
-impl Into<ParticleType> for DotParticle {
-    fn into(self) -> ParticleType {
-        ParticleType::Dot(self)
+impl From<DotParticle> for ParticleType {
+    fn from(value: DotParticle) -> Self {
+        ParticleType::Dot(value)
     }
 }
 
@@ -245,7 +245,7 @@ impl From<&ProjectileState> for bool {
 }
 
 fn update(state: &mut State) {
-    if Into::<bool>::into(state.ship.status) {
+    if (&state.ship.status).into() {
         // rotations / second
         const ROTATION_SPEED: f32 = 2.0;
         const SHIP_SPEED: f32 = 24.0;
@@ -287,12 +287,14 @@ fn update(state: &mut State) {
         }
     }
 
+    let mut additional_rocks: Vec<Rock> = vec![];
+    // let mut rocks = state.rocks;
     for rock in state.rocks.iter_mut() {
         rock.position = rock.position + rock.velocity;
         rock.position = keep_in_frame(rock.position);
 
         // Check for ship v rock collision
-        if Into::<bool>::into(state.ship.status)
+        if (&state.ship.status).into()
             && Vec2::distance(rock.position, state.ship.position)
                 < rock.size.get_size() * rock.size.get_collision_scale()
         {
@@ -324,9 +326,49 @@ fn update(state: &mut State) {
         }
 
         // Check for projectile v rock collision
-        // if  {
-
-        // }
+        for projectile in state.projectiles.iter_mut() {
+            if rock.position.distance(projectile.position)
+                < rock.size.get_size() * rock.size.get_collision_scale()
+            {
+                projectile.state = ProjectileState::Dead;
+                let possible_new_rock: Option<Vec<Rock>> = {
+                    rock.removed = true;
+                    if rock.size == RockSize::Small {
+                        Option::None
+                    } else {
+                        let new_size = match rock.size {
+                            RockSize::Big => RockSize::Medium,
+                            RockSize::Medium => RockSize::Small,
+                            RockSize::Small => unreachable!(),
+                        };
+                        let new_direction = rock.velocity.normalize();
+                        let impact = projectile.position.normalize_or_zero() * 1.5;
+                        let mut new_rocks = vec![];
+                        for _ in 0..2 {
+                            let new_rock = Rock {
+                                position: Vec2::new(
+                                    state.random.gen::<f32>() * SIZE.x,
+                                    state.random.gen::<f32>() * SIZE.y,
+                                ),
+                                velocity: (new_direction
+                                    * 1.5
+                                    * state.random.gen::<f32>()
+                                    * rock.size.get_velocity())
+                                    + impact,
+                                size: new_size,
+                                seed: state.random.gen::<u64>(),
+                                ..Default::default()
+                            };
+                            new_rocks.push(new_rock);
+                        }
+                        Some(new_rocks)
+                    }
+                };
+                if let Some(mut new_rocks) = possible_new_rock {
+                    additional_rocks.append(&mut new_rocks);
+                }
+            }
+        }
     }
 
     for particle in state.particles.iter_mut() {
@@ -358,6 +400,7 @@ fn update(state: &mut State) {
     }
 }
 
+#[inline]
 fn hit_rock(state: &mut State, rock: &mut Rock, impact: Option<Vec2>) -> Option<Vec<Rock>> {
     rock.removed = true;
     if rock.size == RockSize::Small {
@@ -397,7 +440,7 @@ fn keep_in_frame(vec: Vec2) -> Vec2 {
 }
 
 fn render(state: &State) {
-    if Into::<bool>::into(state.ship.status) {
+    if (&state.ship.status).into() {
         let ship_points = [
             Vec2::new(-0.4, -0.5),
             Vec2::new(0.0, 0.5),

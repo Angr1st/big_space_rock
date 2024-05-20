@@ -27,7 +27,7 @@ struct DeathTime {
     death_time: f32,
 }
 
-#[derive(Clone, Copy)]
+// #[derive(Clone, Copy)]
 enum ShipStatus {
     Alive,
     Dead(DeathTime),
@@ -81,7 +81,7 @@ impl Default for Rock {
     }
 }
 
-#[derive(PartialEq, Clone, Copy)]
+// #[derive(PartialEq, Clone, Copy)]
 enum RockSize {
     Big,
     Medium,
@@ -333,18 +333,18 @@ fn update(state: &mut State) {
                 projectile.state = ProjectileState::Dead;
                 let possible_new_rock: Option<Vec<Rock>> = {
                     rock.removed = true;
-                    if rock.size == RockSize::Small {
+                    if let RockSize::Small = rock.size {
                         Option::None
                     } else {
-                        let new_size = match rock.size {
-                            RockSize::Big => RockSize::Medium,
-                            RockSize::Medium => RockSize::Small,
-                            RockSize::Small => unreachable!(),
-                        };
                         let new_direction = rock.velocity.normalize();
                         let impact = projectile.position.normalize_or_zero() * 1.5;
                         let mut new_rocks = vec![];
                         for _ in 0..2 {
+                            let new_size = match rock.size {
+                                RockSize::Big => RockSize::Medium,
+                                RockSize::Medium => RockSize::Small,
+                                RockSize::Small => unreachable!(),
+                            };
                             let new_rock = Rock {
                                 position: Vec2::new(
                                     state.random.gen::<f32>() * SIZE.x,
@@ -400,31 +400,31 @@ fn update(state: &mut State) {
     }
 }
 
-#[inline]
-fn hit_rock(state: &mut State, rock: &mut Rock, impact: Option<Vec2>) -> Option<Vec<Rock>> {
+fn hit_rock(
+    rock: &mut Rock,
+    random: &mut Xoshiro256PlusPlus,
+    impact: Option<Vec2>,
+) -> Option<Vec<Rock>> {
     rock.removed = true;
-    if rock.size == RockSize::Small {
+    if let RockSize::Small = rock.size {
         return Option::None;
     }
 
-    let new_size = match rock.size {
-        RockSize::Big => RockSize::Medium,
-        RockSize::Medium => RockSize::Small,
-        RockSize::Small => unreachable!(),
-    };
     let new_direction = rock.velocity.normalize();
     let impact = impact.map_or(Vec2::ZERO, |imp| imp * 1.5);
     let mut new_rocks = vec![];
     for _ in 0..2 {
+        let new_size = match rock.size {
+            RockSize::Big => RockSize::Medium,
+            RockSize::Medium => RockSize::Small,
+            RockSize::Small => unreachable!(),
+        };
         let new_rock = Rock {
-            position: Vec2::new(
-                state.random.gen::<f32>() * SIZE.x,
-                state.random.gen::<f32>() * SIZE.y,
-            ),
-            velocity: (new_direction * 1.5 * state.random.gen::<f32>() * rock.size.get_velocity())
+            position: Vec2::new(random.gen::<f32>() * SIZE.x, random.gen::<f32>() * SIZE.y),
+            velocity: (new_direction * 1.5 * random.gen::<f32>() * rock.size.get_velocity())
                 + impact,
             size: new_size,
-            seed: state.random.gen::<u64>(),
+            seed: random.gen::<u64>(),
             ..Default::default()
         };
         new_rocks.push(new_rock);

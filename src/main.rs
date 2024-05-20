@@ -284,6 +284,8 @@ fn update(state: &mut State) {
                 state: ProjectileState::Alive { time_to_live: 1.0 },
             };
             state.projectiles.push(projetile);
+
+            state.ship.velocity = state.ship.velocity + ship_direction * -0.5;
         }
     }
 
@@ -304,6 +306,12 @@ fn update(state: &mut State) {
                 death_time: state.now,
             });
 
+            splat(
+                state.ship.position,
+                20,
+                &mut state.particles,
+                &mut state.random,
+            );
             for _ in 0..5 {
                 let angle = std::f32::consts::TAU * state.random.gen::<f32>();
                 let direction = Vec2::from_angle(angle);
@@ -327,43 +335,17 @@ fn update(state: &mut State) {
 
         // Check for projectile v rock collision
         for projectile in state.projectiles.iter_mut() {
-            if rock.position.distance(projectile.position)
-                < rock.size.get_size() * rock.size.get_collision_scale()
+            if projectile.is_alive()
+                && rock.position.distance(projectile.position)
+                    < rock.size.get_size() * rock.size.get_collision_scale()
             {
                 projectile.state = ProjectileState::Dead;
-                let possible_new_rock: Option<Vec<Rock>> = {
-                    rock.removed = true;
-                    if let RockSize::Small = rock.size {
-                        Option::None
-                    } else {
-                        let new_direction = rock.velocity.normalize();
-                        let impact = projectile.position.normalize_or_zero() * 1.5;
-                        let mut new_rocks = vec![];
-                        for _ in 0..2 {
-                            let new_size = match rock.size {
-                                RockSize::Big => RockSize::Medium,
-                                RockSize::Medium => RockSize::Small,
-                                RockSize::Small => unreachable!(),
-                            };
-                            let new_rock = Rock {
-                                position: Vec2::new(
-                                    state.random.gen::<f32>() * SIZE.x,
-                                    state.random.gen::<f32>() * SIZE.y,
-                                ),
-                                velocity: (new_direction
-                                    * 1.5
-                                    * state.random.gen::<f32>()
-                                    * rock.size.get_velocity())
-                                    + impact,
-                                size: new_size,
-                                seed: state.random.gen::<u64>(),
-                                ..Default::default()
-                            };
-                            new_rocks.push(new_rock);
-                        }
-                        Some(new_rocks)
-                    }
-                };
+                let possible_new_rock: Option<Vec<Rock>> = hit_rock(
+                    rock,
+                    &mut state.random,
+                    &mut state.particles,
+                    projectile.velocity.try_normalize(),
+                );
                 if let Some(mut new_rocks) = possible_new_rock {
                     additional_rocks.append(&mut new_rocks);
                 }
@@ -386,6 +368,7 @@ fn update(state: &mut State) {
         }
     }
 
+    state.rocks.append(&mut additional_rocks);
     state.rocks.retain(|rock| !rock.removed);
     state
         .particles
@@ -400,12 +383,39 @@ fn update(state: &mut State) {
     }
 }
 
+fn splat(
+    position: Vec2,
+    count: usize,
+    particles: &mut Vec<Particle>,
+    random: &mut Xoshiro256PlusPlus,
+) {
+    for _ in 0..count {
+        let angle = std::f32::consts::TAU * random.gen::<f32>();
+        let direction = Vec2::from_angle(angle);
+        let position = position + Vec2::new(random.gen::<f32>(), random.gen::<f32>());
+        let velocity = direction * (2.0 + 4.0 * random.gen::<f32>());
+        let time_to_live = 0.5 + (0.4 * random.gen::<f32>());
+        let line_particle = DotParticle::new(SCALE * 0.025);
+        let particle = Particle {
+            position,
+            velocity,
+            time_to_live,
+            particle_type: line_particle.into(),
+        };
+        particles.push(particle);
+    }
+}
+
 fn hit_rock(
     rock: &mut Rock,
     random: &mut Xoshiro256PlusPlus,
+    particles: &mut Vec<Particle>,
     impact: Option<Vec2>,
 ) -> Option<Vec<Rock>> {
     rock.removed = true;
+
+    splat(rock.position, 10, particles, random);
+
     if let RockSize::Small = rock.size {
         return Option::None;
     }
@@ -420,7 +430,7 @@ fn hit_rock(
             RockSize::Small => unreachable!(),
         };
         let new_rock = Rock {
-            position: Vec2::new(random.gen::<f32>() * SIZE.x, random.gen::<f32>() * SIZE.y),
+            position: rock.position,
             velocity: (new_direction * 1.5 * random.gen::<f32>() * rock.size.get_velocity())
                 + impact,
             size: new_size,

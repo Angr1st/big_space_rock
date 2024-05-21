@@ -24,7 +24,6 @@ fn window_conf() -> Conf {
 #[derive(Clone, Copy)]
 struct DeathTime {
     death_timer: f32,
-    death_time: f32,
 }
 
 // #[derive(Clone, Copy)]
@@ -139,6 +138,8 @@ struct State {
     particles: Vec<Particle>,
     projectiles: Vec<Projectile>,
     random: Xoshiro256PlusPlus,
+    lifes: usize,
+    score: usize,
 }
 
 impl Default for State {
@@ -156,6 +157,8 @@ impl Default for State {
             particles: vec![],
             projectiles: vec![],
             random: Xoshiro256PlusPlus::seed_from_u64(seed),
+            lifes: 3,
+            score: 0,
         }
     }
 }
@@ -303,33 +306,28 @@ fn update(state: &mut State) {
             // debug!("You died!");
             state.ship.status = ShipStatus::Dead(DeathTime {
                 death_timer: state.now + 3.0,
-                death_time: state.now,
             });
 
-            splat(
+            splat_dots(
                 state.ship.position,
                 20,
                 &mut state.particles,
                 &mut state.random,
             );
-            for _ in 0..5 {
-                let angle = std::f32::consts::TAU * state.random.gen::<f32>();
-                let direction = Vec2::from_angle(angle);
-                let position = state.ship.position
-                    + Vec2::new(state.random.gen::<f32>(), state.random.gen::<f32>());
-                let velocity = direction * 2.0 * state.random.gen::<f32>();
-                let time_to_live = 3.0 + state.random.gen::<f32>();
-                let line_particle = LineParticle::new(
-                    std::f32::consts::TAU * state.random.gen::<f32>(),
-                    SCALE * (0.6 + (0.4 * state.random.gen::<f32>())),
-                );
-                let particle = Particle {
-                    position,
-                    velocity,
-                    time_to_live,
-                    particle_type: line_particle.into(),
-                };
-                state.particles.push(particle);
+            splat_lines(
+                state.ship.position,
+                5,
+                &mut state.particles,
+                &mut state.random,
+            );
+            let new_rocks = hit_rock(
+                rock,
+                &mut state.random,
+                &mut state.particles,
+                state.ship.velocity.try_normalize(),
+            );
+            if let Some(mut new_rocks) = new_rocks {
+                additional_rocks.append(&mut new_rocks);
             }
         }
 
@@ -383,7 +381,33 @@ fn update(state: &mut State) {
     }
 }
 
-fn splat(
+fn splat_lines(
+    position: Vec2,
+    count: usize,
+    particles: &mut Vec<Particle>,
+    random: &mut Xoshiro256PlusPlus,
+) {
+    for _ in 0..count {
+        let angle = std::f32::consts::TAU * random.gen::<f32>();
+        let direction = Vec2::from_angle(angle);
+        let position = position + Vec2::new(random.gen::<f32>(), random.gen::<f32>());
+        let velocity = direction * 2.0 * random.gen::<f32>();
+        let time_to_live = 3.0 + random.gen::<f32>();
+        let line_particle = LineParticle::new(
+            std::f32::consts::TAU * random.gen::<f32>(),
+            SCALE * (0.6 + (0.4 * random.gen::<f32>())),
+        );
+        let particle = Particle {
+            position,
+            velocity,
+            time_to_live,
+            particle_type: line_particle.into(),
+        };
+        particles.push(particle);
+    }
+}
+
+fn splat_dots(
     position: Vec2,
     count: usize,
     particles: &mut Vec<Particle>,
@@ -414,7 +438,7 @@ fn hit_rock(
 ) -> Option<Vec<Rock>> {
     rock.removed = true;
 
-    splat(rock.position, 10, particles, random);
+    splat_dots(rock.position, 10, particles, random);
 
     if let RockSize::Small = rock.size {
         return Option::None;
@@ -449,20 +473,30 @@ fn keep_in_frame(vec: Vec2) -> Vec2 {
     Vec2::new(new_x, new_y)
 }
 
+const SHIP_POINTS: [Vec2; 5] = [
+    Vec2::new(-0.4, -0.5),
+    Vec2::new(0.0, 0.5),
+    Vec2::new(0.4, -0.5),
+    Vec2::new(0.3, -0.4),
+    Vec2::new(-0.3, -0.4),
+];
+
 fn render(state: &State) {
+    for life in 0..state.lifes {
+        draw_lines(
+            Vec2::new(SCALE + life as f32 * SCALE, SCALE),
+            SCALE,
+            -std::f32::consts::PI,
+            &SHIP_POINTS,
+        );
+    }
+
     if (&state.ship.status).into() {
-        let ship_points = [
-            Vec2::new(-0.4, -0.5),
-            Vec2::new(0.0, 0.5),
-            Vec2::new(0.4, -0.5),
-            Vec2::new(0.3, -0.4),
-            Vec2::new(-0.3, -0.4),
-        ];
         draw_lines(
             state.ship.position,
             SCALE,
             state.ship.rotation,
-            &ship_points,
+            &SHIP_POINTS,
         );
         if state.render_thruster_plume {
             let thruster_points = [
@@ -500,7 +534,7 @@ fn render(state: &State) {
     }
 }
 
-fn reset_asteroids(state: &mut State) {
+fn reset_rocks(state: &mut State) {
     if !state.rocks.is_empty() {
         state.rocks.clear();
     }
@@ -524,7 +558,23 @@ fn reset_asteroids(state: &mut State) {
 }
 
 fn reset_level(state: &mut State) {
+    let ship_alive: bool = (&state.ship.status).into();
+    if !ship_alive && state.lifes > 0 {
+        state.lifes -= 1;
+    }
     state.ship = Ship::default();
+
+    if state.lifes == 0 {
+        reset_game(state);
+    }
+}
+
+fn reset_game(state: &mut State) {
+    state.lifes = 3;
+    state.score = 0;
+
+    reset_level(state);
+    reset_rocks(state);
 }
 
 #[macroquad::main(window_conf)]
@@ -532,8 +582,7 @@ async fn main() {
     // debug!("Helloaaaa, world!\n");
     let mut state = State::default();
 
-    reset_level(&mut state);
-    reset_asteroids(&mut state);
+    reset_game(&mut state);
 
     loop {
         clear_background(BLACK);

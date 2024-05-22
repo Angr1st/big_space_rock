@@ -24,9 +24,18 @@ fn window_conf() -> Conf {
 #[derive(Clone, Copy)]
 struct DeathTime {
     death_timer: f32,
+    death_time: f32,
 }
 
-// #[derive(Clone, Copy)]
+impl DeathTime {
+    fn new(time: f32) -> Self {
+        Self {
+            death_timer: time + 3.0,
+            death_time: time,
+        }
+    }
+}
+
 enum ShipStatus {
     Alive,
     Dead(DeathTime),
@@ -304,22 +313,7 @@ fn update(state: &mut State) {
                 < rock.size.get_size() * rock.size.get_collision_scale()
         {
             // debug!("You died!");
-            state.ship.status = ShipStatus::Dead(DeathTime {
-                death_timer: state.now + 3.0,
-            });
-
-            splat_dots(
-                state.ship.position,
-                20,
-                &mut state.particles,
-                &mut state.random,
-            );
-            splat_lines(
-                state.ship.position,
-                5,
-                &mut state.particles,
-                &mut state.random,
-            );
+            state.ship.status = ShipStatus::Dead(DeathTime::new(state.now));
             let new_rocks = hit_rock(
                 rock,
                 &mut state.random,
@@ -361,8 +355,15 @@ fn update(state: &mut State) {
         projectile.position = projectile.position + projectile.velocity;
         projectile.position = keep_in_frame(projectile.position);
         if let ProjectileState::Alive { mut time_to_live } = projectile.state {
-            time_to_live -= state.delta;
-            projectile.state = time_to_live.into();
+            if (&state.ship.status).into()
+                && state.ship.position.distance(projectile.position) < (SCALE * 0.7)
+            {
+                projectile.state = ProjectileState::Dead;
+                state.ship.status = ShipStatus::Dead(DeathTime::new(state.now));
+            } else {
+                time_to_live -= state.delta;
+                projectile.state = time_to_live.into();
+            }
         }
     }
 
@@ -375,6 +376,20 @@ fn update(state: &mut State) {
 
     if let ShipStatus::Dead(value) = state.ship.status {
         // debug!("We dead!");
+        if value.death_time == state.now {
+            splat_dots(
+                state.ship.position,
+                20,
+                &mut state.particles,
+                &mut state.random,
+            );
+            splat_lines(
+                state.ship.position,
+                5,
+                &mut state.particles,
+                &mut state.random,
+            );
+        }
         if state.now > value.death_timer {
             reset_level(state);
         }
@@ -471,6 +486,60 @@ fn keep_in_frame(vec: Vec2) -> Vec2 {
     let new_y = if vec.y <= 0.0 { SIZE.y } else { vec.y % SIZE.y };
     // debug!("x:{}, y:{}", new_x, new_y);
     Vec2::new(new_x, new_y)
+}
+
+fn draw_number(number: usize, position: Vec2) {
+    const NUMBER_LINES: [&[[f32; 2]]; 10] = [
+        &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]],
+        &[[0.5, 0.0], [0.5, 1.0]],
+        &[
+            [0.0, 1.0],
+            [1.0, 1.0],
+            [1.0, 0.5],
+            [0.0, 0.5],
+            [0.0, 0.0],
+            [1.0, 0.0],
+        ],
+        &[
+            [0.0, 1.0],
+            [1.0, 1.0],
+            [1.0, 0.5],
+            [0.0, 0.5],
+            [1.0, 0.5],
+            [1.0, 0.0],
+            [0.0, 0.0],
+        ],
+        &[[0.0, 1.0], [0.0, 0.5], [1.0, 0.5], [1.0, 1.0], [1.0, 0.0]],
+        &[
+            [1.0, 1.0],
+            [0.0, 1.0],
+            [0.0, 0.5],
+            [1.0, 0.5],
+            [1.0, 0.0],
+            [0.0, 0.0],
+        ],
+        &[[0.0, 1.0], [0.0, 0.0], [1.0, 0.0], [1.0, 0.5], [0.0, 0.5]],
+        &[[0.0, 1.0], [1.0, 1.0], [1.0, 0.0]],
+        &[
+            [0.0, 0.0],
+            [1.0, 0.0],
+            [1.0, 1.0],
+            [0.0, 1.0],
+            [0.0, 0.5],
+            [1.0, 0.5],
+        ],
+        &[[0.0, 0.0], [0.0, 1.0], [1.0, 1.0], [1.0, 0.5], [0.0, 0.5]],
+    ];
+
+    // Count digits
+    let mut value = number;
+    let mut digits = 0;
+    while value > 0 {
+        digits += 1;
+        value /= 10;
+    }
+
+    //TODO : Draw digits 4:32
 }
 
 const SHIP_POINTS: [Vec2; 5] = [

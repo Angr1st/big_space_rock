@@ -489,46 +489,76 @@ fn keep_in_frame(vec: Vec2) -> Vec2 {
 }
 
 fn draw_number(number: usize, position: Vec2) {
-    const NUMBER_LINES: [&[[f32; 2]]; 10] = [
-        &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]],
-        &[[0.5, 0.0], [0.5, 1.0]],
+    const NUMBER_LINES: [&[Vec2]; 10] = [
         &[
-            [0.0, 1.0],
-            [1.0, 1.0],
-            [1.0, 0.5],
-            [0.0, 0.5],
-            [0.0, 0.0],
-            [1.0, 0.0],
+            Vec2::new(-0.5, 0.5),
+            Vec2::new(0.5, 0.5),
+            Vec2::new(0.5, -0.5),
+            Vec2::new(-0.5, -0.5),
+            Vec2::new(-0.5, 0.5),
+        ],
+        &[Vec2::new(0.0, 0.5), Vec2::new(0.0, -0.5)],
+        &[
+            Vec2::new(-0.5, -0.5),
+            Vec2::new(0.5, -0.5),
+            Vec2::new(0.5, 0.0),
+            Vec2::new(-0.5, 0.0),
+            Vec2::new(-0.5, 0.5),
+            Vec2::new(0.5, 0.5),
         ],
         &[
-            [0.0, 1.0],
-            [1.0, 1.0],
-            [1.0, 0.5],
-            [0.0, 0.5],
-            [1.0, 0.5],
-            [1.0, 0.0],
-            [0.0, 0.0],
+            Vec2::new(-0.5, -0.5),
+            Vec2::new(0.5, -0.5),
+            Vec2::new(0.5, 0.0),
+            Vec2::new(-0.5, 0.0),
+            Vec2::new(0.5, 0.0),
+            Vec2::new(0.5, 0.5),
+            Vec2::new(-0.5, 0.5),
         ],
-        &[[0.0, 1.0], [0.0, 0.5], [1.0, 0.5], [1.0, 1.0], [1.0, 0.0]],
         &[
-            [1.0, 1.0],
-            [0.0, 1.0],
-            [0.0, 0.5],
-            [1.0, 0.5],
-            [1.0, 0.0],
-            [0.0, 0.0],
+            Vec2::new(-0.5, -0.5),
+            Vec2::new(-0.5, 0.0),
+            Vec2::new(0.5, 0.0),
+            Vec2::new(0.5, -0.5),
+            Vec2::new(0.5, 0.5),
         ],
-        &[[0.0, 1.0], [0.0, 0.0], [1.0, 0.0], [1.0, 0.5], [0.0, 0.5]],
-        &[[0.0, 1.0], [1.0, 1.0], [1.0, 0.0]],
         &[
-            [0.0, 0.0],
-            [1.0, 0.0],
-            [1.0, 1.0],
-            [0.0, 1.0],
-            [0.0, 0.5],
-            [1.0, 0.5],
+            Vec2::new(0.5, -0.5),
+            Vec2::new(-0.5, -0.5),
+            Vec2::new(-0.5, 0.0),
+            Vec2::new(0.5, 0.0),
+            Vec2::new(0.5, 0.5),
+            Vec2::new(-0.5, 0.5),
         ],
-        &[[0.0, 0.0], [0.0, 1.0], [1.0, 1.0], [1.0, 0.5], [0.0, 0.5]],
+        &[
+            Vec2::new(-0.5, -0.5),
+            Vec2::new(-0.5, 0.5),
+            Vec2::new(0.5, 0.5),
+            Vec2::new(0.5, 0.0),
+            Vec2::new(-0.5, 0.0),
+        ],
+        &[
+            Vec2::new(-0.5, -0.5),
+            Vec2::new(0.5, -0.5),
+            Vec2::new(0.5, 0.5),
+        ],
+        &[
+            Vec2::new(-0.5, 0.5),
+            Vec2::new(0.5, 0.5),
+            Vec2::new(0.5, -0.5),
+            Vec2::new(-0.5, -0.5),
+            Vec2::new(-0.5, 0.0),
+            Vec2::new(0.5, 0.0),
+            Vec2::new(-0.5, 0.0), //0.0
+            Vec2::new(-0.5, 0.5), //0.5
+        ],
+        &[
+            Vec2::new(0.5, 0.5),
+            Vec2::new(0.5, -0.5),
+            Vec2::new(-0.5, -0.5),
+            Vec2::new(-0.5, 0.0),
+            Vec2::new(0.5, 0.0),
+        ],
     ];
 
     // Count digits
@@ -540,6 +570,21 @@ fn draw_number(number: usize, position: Vec2) {
     }
 
     //TODO : Draw digits 4:32
+    let mut new_x = position.x + digits as f32 * SCALE;
+    value = number;
+    while value > 0 {
+        let number_index = value % 10;
+        // debug!("value: {}, number_index: {}", value, number_index);
+        draw_lines(
+            Vec2::new(new_x, position.y),
+            SCALE * 0.8,
+            0.0,
+            NUMBER_LINES.get(number_index).unwrap(),
+            false,
+        );
+        new_x -= SCALE;
+        value /= 10;
+    }
 }
 
 const SHIP_POINTS: [Vec2; 5] = [
@@ -557,8 +602,12 @@ fn render(state: &State) {
             SCALE,
             -std::f32::consts::PI,
             &SHIP_POINTS,
+            true,
         );
     }
+
+    // Render Score
+    draw_number(1234567890, Vec2::new(SIZE.x - 450 as f32, SCALE));
 
     if (&state.ship.status).into() {
         draw_lines(
@@ -566,6 +615,7 @@ fn render(state: &State) {
             SCALE,
             state.ship.rotation,
             &SHIP_POINTS,
+            true,
         );
         if state.render_thruster_plume {
             let thruster_points = [
@@ -579,6 +629,7 @@ fn render(state: &State) {
                 SCALE,
                 state.ship.rotation,
                 &thruster_points,
+                true,
             );
         }
     }
@@ -591,9 +642,13 @@ fn render(state: &State) {
 
     for particle in state.particles.iter() {
         match &particle.particle_type {
-            ParticleType::Line(line) => {
-                draw_lines(particle.position, line.length, line.rotation, &line_points)
-            }
+            ParticleType::Line(line) => draw_lines(
+                particle.position,
+                line.length,
+                line.rotation,
+                &line_points,
+                true,
+            ),
             ParticleType::Dot(dot) => draw_circle_vec2(particle.position, dot.radius, LINE_COLOR),
         };
     }
@@ -628,14 +683,14 @@ fn reset_rocks(state: &mut State) {
 
 fn reset_level(state: &mut State) {
     let ship_alive: bool = (&state.ship.status).into();
-    if !ship_alive && state.lifes > 0 {
-        state.lifes -= 1;
+    if !ship_alive {
+        if state.lifes == 0 {
+            reset_game(state);
+        } else {
+            state.lifes -= 1;
+        }
     }
     state.ship = Ship::default();
-
-    if state.lifes == 0 {
-        reset_game(state);
-    }
 }
 
 fn reset_game(state: &mut State) {
@@ -680,15 +735,19 @@ fn draw_space_rock(pos: Vec2, size: &RockSize, seed: u64) {
         points.push(direction * radius);
     }
     // debug!("points: {}", points.len());
-    draw_lines(pos, size.get_size(), 0.0, &points);
+    draw_lines(pos, size.get_size(), 0.0, &points, true);
 }
 
-fn draw_lines(origin: Vec2, scale: f32, rotation: f32, points: &[Vec2]) {
+fn draw_lines(origin: Vec2, scale: f32, rotation: f32, points: &[Vec2], connect: bool) {
     let rotation_vec = Vec2::from_angle(rotation);
     let apply = |p: Vec2| (p.rotate(rotation_vec) * scale) + origin;
 
-    let length = points.len();
-    for i in 0..=length - 1 {
+    let length = if connect {
+        points.len()
+    } else {
+        points.len() - 1
+    };
+    for i in 0..length {
         let wrap = (i + 1) % length;
         //debug!("i {}, wrap: {}", i, wrap);
         let pos1 = points.get(i).unwrap();

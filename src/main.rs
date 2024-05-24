@@ -746,7 +746,7 @@ fn draw_lines(origin: Vec2, scale: f32, rotation: f32, points: &[Vec2], connect:
     } else {
         points.len() - 1
     };
-    for i in 0..length {
+    for i in 0..=length {
         let wrap = (i + 1) % length;
         //debug!("i {}, wrap: {}", i, wrap);
         let pos1 = points.get(i).unwrap();

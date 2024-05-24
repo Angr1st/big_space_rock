@@ -562,16 +562,15 @@ fn draw_number(number: usize, position: Vec2) {
     ];
 
     // Count digits
-    let mut value = number;
-    let mut digits = 0;
-    while value > 0 {
-        digits += 1;
-        value /= 10;
-    }
+    // let mut digits = 0;
+    // while value > 0 {
+    //     digits += 1;
+    //     value /= 10;
+    // }
 
     //TODO : Draw digits 4:32
-    let mut new_x = position.x + digits as f32 * SCALE;
-    value = number;
+    let mut new_x = position.x;
+    let mut value = number;
     while value > 0 {
         let number_index = value % 10;
         // debug!("value: {}, number_index: {}", value, number_index);
@@ -607,7 +606,7 @@ fn render(state: &State) {
     }
 
     // Render Score
-    draw_number(1234567890, Vec2::new(SIZE.x - 450 as f32, SCALE));
+    draw_number(11, Vec2::new(SIZE.x - SCALE, SCALE));
 
     if (&state.ship.status).into() {
         draw_lines(

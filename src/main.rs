@@ -606,7 +606,7 @@ fn render(state: &State) {
     }
 
     // Render Score
-    draw_number(11, Vec2::new(SIZE.x - SCALE, SCALE));
+    draw_number(1234567809, Vec2::new(SIZE.x - SCALE, SCALE));
 
     if (&state.ship.status).into() {
         draw_lines(
@@ -746,8 +746,8 @@ fn draw_lines(origin: Vec2, scale: f32, rotation: f32, points: &[Vec2], connect:
     } else {
         points.len() - 1
     };
-    for i in 0..=length {
-        let wrap = (i + 1) % length;
+    for i in 0..length {
+        let wrap = (i + 1) % points.len();
         //debug!("i {}, wrap: {}", i, wrap);
         let pos1 = points.get(i).unwrap();
         let pos2 = points.get(wrap).unwrap();

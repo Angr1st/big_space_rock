@@ -488,104 +488,6 @@ fn keep_in_frame(vec: Vec2) -> Vec2 {
     Vec2::new(new_x, new_y)
 }
 
-fn draw_number(number: usize, position: Vec2) {
-    const NUMBER_LINES: [&[Vec2]; 10] = [
-        &[
-            Vec2::new(-0.5, 0.5),
-            Vec2::new(0.5, 0.5),
-            Vec2::new(0.5, -0.5),
-            Vec2::new(-0.5, -0.5),
-            Vec2::new(-0.5, 0.5),
-        ],
-        &[Vec2::new(0.0, 0.5), Vec2::new(0.0, -0.5)],
-        &[
-            Vec2::new(-0.5, -0.5),
-            Vec2::new(0.5, -0.5),
-            Vec2::new(0.5, 0.0),
-            Vec2::new(-0.5, 0.0),
-            Vec2::new(-0.5, 0.5),
-            Vec2::new(0.5, 0.5),
-        ],
-        &[
-            Vec2::new(-0.5, -0.5),
-            Vec2::new(0.5, -0.5),
-            Vec2::new(0.5, 0.0),
-            Vec2::new(-0.5, 0.0),
-            Vec2::new(0.5, 0.0),
-            Vec2::new(0.5, 0.5),
-            Vec2::new(-0.5, 0.5),
-        ],
-        &[
-            Vec2::new(-0.5, -0.5),
-            Vec2::new(-0.5, 0.0),
-            Vec2::new(0.5, 0.0),
-            Vec2::new(0.5, -0.5),
-            Vec2::new(0.5, 0.5),
-        ],
-        &[
-            Vec2::new(0.5, -0.5),
-            Vec2::new(-0.5, -0.5),
-            Vec2::new(-0.5, 0.0),
-            Vec2::new(0.5, 0.0),
-            Vec2::new(0.5, 0.5),
-            Vec2::new(-0.5, 0.5),
-        ],
-        &[
-            Vec2::new(-0.5, -0.5),
-            Vec2::new(-0.5, 0.5),
-            Vec2::new(0.5, 0.5),
-            Vec2::new(0.5, 0.0),
-            Vec2::new(-0.5, 0.0),
-        ],
-        &[
-            Vec2::new(-0.5, -0.5),
-            Vec2::new(0.5, -0.5),
-            Vec2::new(0.5, 0.5),
-        ],
-        &[
-            Vec2::new(-0.5, 0.5),
-            Vec2::new(0.5, 0.5),
-            Vec2::new(0.5, -0.5),
-            Vec2::new(-0.5, -0.5),
-            Vec2::new(-0.5, 0.0),
-            Vec2::new(0.5, 0.0),
-            Vec2::new(-0.5, 0.0), //0.0
-            Vec2::new(-0.5, 0.5), //0.5
-        ],
-        &[
-            Vec2::new(0.5, 0.5),
-            Vec2::new(0.5, -0.5),
-            Vec2::new(-0.5, -0.5),
-            Vec2::new(-0.5, 0.0),
-            Vec2::new(0.5, 0.0),
-        ],
-    ];
-
-    // Count digits
-    // let mut digits = 0;
-    // while value > 0 {
-    //     digits += 1;
-    //     value /= 10;
-    // }
-
-    //TODO : Draw digits 4:32
-    let mut new_x = position.x;
-    let mut value = number;
-    while value > 0 {
-        let number_index = value % 10;
-        // debug!("value: {}, number_index: {}", value, number_index);
-        draw_lines(
-            Vec2::new(new_x, position.y),
-            SCALE * 0.8,
-            0.0,
-            NUMBER_LINES.get(number_index).unwrap(),
-            false,
-        );
-        new_x -= SCALE;
-        value /= 10;
-    }
-}
-
 const SHIP_POINTS: [Vec2; 5] = [
     Vec2::new(-0.4, -0.5),
     Vec2::new(0.0, 0.5),
@@ -606,7 +508,7 @@ fn render(state: &State) {
     }
 
     // Render Score
-    draw_number(1234567809, Vec2::new(SIZE.x - SCALE, SCALE));
+    draw_number(state.score, Vec2::new(SIZE.x - SCALE, SCALE));
 
     if (&state.ship.status).into() {
         draw_lines(
@@ -715,6 +617,106 @@ async fn main() {
         update(&mut state);
         render(&state);
         next_frame().await;
+    }
+}
+
+fn draw_number(number: usize, position: Vec2) {
+    const NUMBER_LINES: [&[Vec2]; 10] = [
+        &[
+            Vec2::new(-0.5, 0.5),
+            Vec2::new(0.5, 0.5),
+            Vec2::new(0.5, -0.5),
+            Vec2::new(-0.5, -0.5),
+            Vec2::new(-0.5, 0.5),
+        ],
+        &[Vec2::new(0.0, 0.5), Vec2::new(0.0, -0.5)],
+        &[
+            Vec2::new(-0.5, -0.5),
+            Vec2::new(0.5, -0.5),
+            Vec2::new(0.5, 0.0),
+            Vec2::new(-0.5, 0.0),
+            Vec2::new(-0.5, 0.5),
+            Vec2::new(0.5, 0.5),
+        ],
+        &[
+            Vec2::new(-0.5, -0.5),
+            Vec2::new(0.5, -0.5),
+            Vec2::new(0.5, 0.0),
+            Vec2::new(-0.5, 0.0),
+            Vec2::new(0.5, 0.0),
+            Vec2::new(0.5, 0.5),
+            Vec2::new(-0.5, 0.5),
+        ],
+        &[
+            Vec2::new(-0.5, -0.5),
+            Vec2::new(-0.5, 0.0),
+            Vec2::new(0.5, 0.0),
+            Vec2::new(0.5, -0.5),
+            Vec2::new(0.5, 0.5),
+        ],
+        &[
+            Vec2::new(0.5, -0.5),
+            Vec2::new(-0.5, -0.5),
+            Vec2::new(-0.5, 0.0),
+            Vec2::new(0.5, 0.0),
+            Vec2::new(0.5, 0.5),
+            Vec2::new(-0.5, 0.5),
+        ],
+        &[
+            Vec2::new(-0.5, -0.5),
+            Vec2::new(-0.5, 0.5),
+            Vec2::new(0.5, 0.5),
+            Vec2::new(0.5, 0.0),
+            Vec2::new(-0.5, 0.0),
+        ],
+        &[
+            Vec2::new(-0.5, -0.5),
+            Vec2::new(0.5, -0.5),
+            Vec2::new(0.5, 0.5),
+        ],
+        &[
+            Vec2::new(-0.5, 0.5),
+            Vec2::new(0.5, 0.5),
+            Vec2::new(0.5, -0.5),
+            Vec2::new(-0.5, -0.5),
+            Vec2::new(-0.5, 0.0),
+            Vec2::new(0.5, 0.0),
+            Vec2::new(-0.5, 0.0), //0.0
+            Vec2::new(-0.5, 0.5), //0.5
+        ],
+        &[
+            Vec2::new(0.5, 0.5),
+            Vec2::new(0.5, -0.5),
+            Vec2::new(-0.5, -0.5),
+            Vec2::new(-0.5, 0.0),
+            Vec2::new(0.5, 0.0),
+        ],
+    ];
+    //TODO : Draw digits 4:32
+    if number == 0 {
+        draw_lines(
+            position,
+            SCALE * 0.8,
+            0.0,
+            NUMBER_LINES.get(0).unwrap(),
+            false,
+        );
+    } else {
+        let mut new_x = position.x;
+        let mut value = number;
+        while value > 0 {
+            let number_index = value % 10;
+            // debug!("value: {}, number_index: {}", value, number_index);
+            draw_lines(
+                Vec2::new(new_x, position.y),
+                SCALE * 0.8,
+                0.0,
+                NUMBER_LINES.get(number_index).unwrap(),
+                false,
+            );
+            new_x -= SCALE;
+            value /= 10;
+        }
     }
 }
 

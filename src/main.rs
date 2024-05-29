@@ -105,6 +105,14 @@ impl RockSize {
         }
     }
 
+    pub fn get_score(self: &Self) -> usize {
+        match self {
+            RockSize::Big => 20,
+            RockSize::Medium => 50,
+            RockSize::Small => 100,
+        }
+    }
+
     pub fn get_collision_scale(self: &Self) -> f32 {
         match self {
             RockSize::Big => 0.4,
@@ -332,6 +340,7 @@ fn update(state: &mut State) {
                     < rock.size.get_size() * rock.size.get_collision_scale()
             {
                 projectile.state = ProjectileState::Dead;
+                state.score += rock.size.get_score();
                 let possible_new_rock: Option<Vec<Rock>> = hit_rock(
                     rock,
                     &mut state.random,

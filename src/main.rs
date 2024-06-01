@@ -1,7 +1,10 @@
 use std::{ops::Mul, time::SystemTime};
 
 use ::rand::Rng;
-use macroquad::prelude::*;
+use macroquad::{
+    audio::{load_sound, play_sound_once},
+    prelude::*,
+};
 use rand_xoshiro::{rand_core::SeedableRng, Xoshiro256PlusPlus, Xoshiro256StarStar};
 
 const THICKNESS: f32 = 2.5;
@@ -616,6 +619,14 @@ async fn main() {
     // debug!("Helloaaaa, world!\n");
     let mut state = State::default();
 
+    let blop_lo = load_sound("./assets/Blop_lo.wav")
+        .await
+        .expect("Sound blop_lo not found!");
+    let blop_high = load_sound("./assets/Blop_high.wav")
+        .await
+        .expect("Sound blop_lo not found!");
+
+    play_sound_once(&blop_high);
     reset_game(&mut state);
 
     loop {

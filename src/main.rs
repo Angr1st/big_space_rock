@@ -2,7 +2,7 @@ use std::{ops::Mul, time::SystemTime};
 
 use ::rand::Rng;
 use macroquad::{
-    audio::{load_sound, play_sound_once},
+    audio::{load_sound, play_sound_once, Sound},
     prelude::*,
 };
 use rand_xoshiro::{rand_core::SeedableRng, Xoshiro256PlusPlus, Xoshiro256StarStar};
@@ -160,6 +160,7 @@ struct State {
     random: Xoshiro256PlusPlus,
     lifes: usize,
     score: usize,
+    sounds: Option<Sounds>,
 }
 
 impl Default for State {
@@ -179,6 +180,21 @@ impl Default for State {
             random: Xoshiro256PlusPlus::seed_from_u64(seed),
             lifes: 3,
             score: 0,
+            sounds: None,
+        }
+    }
+}
+
+struct Sounds {
+    blop_low: Sound,
+    blop_high: Sound,
+}
+
+impl Sounds {
+    fn new(blop_low: Sound, blop_high: Sound) -> Self {
+        Self {
+            blop_low,
+            blop_high,
         }
     }
 }
@@ -625,8 +641,10 @@ async fn main() {
     let blop_high = load_sound("./assets/Blop_high.wav")
         .await
         .expect("Sound blop_lo not found!");
+    let sounds = Sounds::new(blop_lo, blop_high);
 
-    play_sound_once(&blop_high);
+    state.sounds = Some(sounds);
+
     reset_game(&mut state);
 
     loop {

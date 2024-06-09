@@ -161,6 +161,7 @@ struct State {
     lifes: usize,
     score: usize,
     sounds: Option<Sounds>,
+    bloop: usize,
 }
 
 impl Default for State {
@@ -181,6 +182,7 @@ impl Default for State {
             lifes: 3,
             score: 0,
             sounds: None,
+            bloop: 0,
         }
     }
 }
@@ -422,6 +424,12 @@ fn update(state: &mut State) {
             reset_level(state);
         }
     }
+    let bloop_count = state.now as usize * 2;
+    if (&state.ship.status).into() && bloop_count % 2 == 0 {
+        let sound = state.sounds.as_ref().unwrap();
+        let sound = &sound.blop_low;
+        play_sound_once(sound);
+    }
 }
 
 fn splat_lines(
@@ -640,7 +648,7 @@ async fn main() {
         .expect("Sound blop_lo not found!");
     let blop_high = load_sound("./assets/Blop_high.wav")
         .await
-        .expect("Sound blop_lo not found!");
+        .expect("Sound blop_high not found!");
     let sounds = Sounds::new(blop_lo, blop_high);
 
     state.sounds = Some(sounds);

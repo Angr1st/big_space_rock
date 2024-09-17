@@ -643,12 +643,12 @@ async fn main() {
     // debug!("Helloaaaa, world!\n");
     let mut state = State::default();
 
-    let blop_lo = load_sound("./assets/Blop_lo.wav")
+    let blop_lo = load_sound("./assets/bloop_lo.wav")
         .await
-        .expect("Sound blop_lo not found!");
-    let blop_high = load_sound("./assets/Blop_high.wav")
+        .expect("Sound bloop_lo not found!");
+    let blop_high = load_sound("./assets/bloop_hi.wav")
         .await
-        .expect("Sound blop_high not found!");
+        .expect("Sound bloop_hi not found!");
     let sounds = Sounds::new(blop_lo, blop_high);
 
     state.sounds = Some(sounds);

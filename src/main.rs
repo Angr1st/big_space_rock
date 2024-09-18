@@ -161,7 +161,7 @@ struct State {
     lifes: usize,
     score: usize,
     sounds: Option<Sounds>,
-    bloop: usize,
+    bloop: bool,
 }
 
 impl Default for State {
@@ -182,7 +182,7 @@ impl Default for State {
             lifes: 3,
             score: 0,
             sounds: None,
-            bloop: 0,
+            bloop: false,
         }
     }
 }
@@ -427,8 +427,13 @@ fn update(state: &mut State) {
     let bloop_count = state.now as usize * 2;
     if (&state.ship.status).into() && bloop_count % 2 == 0 {
         let sound = state.sounds.as_ref().unwrap();
-        let sound = &sound.blop_low;
+        let sound = if state.bloop {
+            &sound.blop_low
+        } else {
+            &sound.blop_high
+        };
         play_sound_once(sound);
+        state.bloop = !state.bloop;
     }
 }
 

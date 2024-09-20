@@ -327,6 +327,7 @@ fn update(state: &mut State) {
         if keys.contains(&KeyCode::W) {
             state.ship.velocity = state.ship.velocity + (ship_direction * state.delta * SHIP_SPEED);
             state.render_thruster_plume = (((state.now.round() as i32) * 10) % 2) == 0;
+            play_sound_once(&state.sounds.thruster);
         } else {
             state.render_thruster_plume = false;
         }
@@ -346,7 +347,7 @@ fn update(state: &mut State) {
                 state: ProjectileState::Alive { time_to_live: 1.0 },
             };
             state.projectiles.push(projetile);
-
+            play_sound_once(&state.sounds.shoot);
             state.ship.velocity = state.ship.velocity + ship_direction * -0.5;
         }
     }
@@ -369,6 +370,7 @@ fn update(state: &mut State) {
                 &mut state.random,
                 &mut state.particles,
                 state.ship.velocity.try_normalize(),
+                &state.sounds.asteroid,
             );
             if let Some(mut new_rocks) = new_rocks {
                 additional_rocks.append(&mut new_rocks);
@@ -388,6 +390,7 @@ fn update(state: &mut State) {
                     &mut state.random,
                     &mut state.particles,
                     projectile.velocity.try_normalize(),
+                    &state.sounds.asteroid,
                 );
                 if let Some(mut new_rocks) = possible_new_rock {
                     additional_rocks.append(&mut new_rocks);
@@ -428,6 +431,7 @@ fn update(state: &mut State) {
     if let ShipStatus::Dead(value) = state.ship.status {
         // debug!("We dead!");
         if value.death_time == state.now {
+            play_sound_once(&state.sounds.explosion);
             splat_dots(
                 state.ship.position,
                 20,
@@ -446,7 +450,7 @@ fn update(state: &mut State) {
         }
     }
 
-    let bloop_intensity = usize::min((state.now - state.stage_start).round() as usize / 4, 3);
+    let bloop_intensity = usize::min((state.now - state.stage_start).round() as usize / 15, 3);
     let mut bloop_mod: usize = 144;
     for _ in 0..bloop_intensity {
         bloop_mod /= 2;
@@ -521,9 +525,10 @@ fn hit_rock(
     random: &mut Xoshiro256PlusPlus,
     particles: &mut Vec<Particle>,
     impact: Option<Vec2>,
+    sound: &Sound,
 ) -> Option<Vec<Rock>> {
     rock.removed = true;
-
+    play_sound_once(sound);
     splat_dots(rock.position, 10, particles, random);
 
     if let RockSize::Small = rock.size {

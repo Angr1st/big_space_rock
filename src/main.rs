@@ -151,6 +151,7 @@ impl From<f32> for RockSize {
 
 struct State {
     now: f32,
+    stage_start: f32,
     delta: f32,
     ship: Ship,
     render_thruster_plume: bool,
@@ -174,6 +175,7 @@ impl Default for State {
             .as_secs();
         Self {
             now: 0.0,
+            stage_start: 0.0,
             delta: 0.0,
             ship: Ship::default(),
             render_thruster_plume: false,
@@ -429,24 +431,26 @@ fn update(state: &mut State) {
         }
     }
 
+    let bloop_intensity = usize::min((state.now - state.stage_start).round() as usize / 4, 3);
+    let mut bloop_mod: usize = 144;
+    for _ in 0..bloop_intensity {
+        bloop_mod /= 2;
+    }
+
+    if state.frame % bloop_mod == 0 {
+        state.bloop += 1;
+    }
+
     if (&state.ship.status).into() && state.bloop != state.last_bloop {
         let sound = state.sounds.as_ref().unwrap();
-        let sound = if number_to_bool(state.bloop) {
+        let sound = if state.bloop % 2 == 1 {
             &sound.blop_low
         } else {
             &sound.blop_high
         };
         play_sound_once(sound);
-        state.last_bloop = state.bloop;
     }
-}
-
-fn number_to_bool(number: usize) -> bool {
-    if number == 0 {
-        false
-    } else {
-        true
-    }
+    state.last_bloop = state.bloop;
 }
 
 fn splat_lines(
@@ -633,6 +637,8 @@ fn reset_rocks(state: &mut State) {
         };
         state.rocks.push(rock);
     }
+
+    state.stage_start = state.now;
 }
 
 fn reset_level(state: &mut State) {

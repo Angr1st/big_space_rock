@@ -73,7 +73,6 @@ impl Default for Ship {
 struct Rock {
     position: Vec2,
     velocity: Vec2,
-    rotation: f32,
     size: RockSize,
     seed: u64,
     removed: bool,
@@ -84,7 +83,6 @@ impl Default for Rock {
         Self {
             position: Vec2::ZERO,
             velocity: Vec2::ZERO,
-            rotation: 0.0,
             size: RockSize::Big,
             seed: 0,
             removed: false,
@@ -146,6 +144,33 @@ impl RockSize {
 impl From<f32> for RockSize {
     fn from(value: f32) -> Self {
         RockSize::new(value)
+    }
+}
+
+enum AlienSize {
+    Big,
+    Small,
+}
+
+struct Alien {
+    position: Vec2,
+    direction: Vec2,
+    size: AlienSize,
+    removed: bool,
+    last_shot: f32,
+    last_direction: f32,
+}
+
+impl Default for Alien {
+    fn default() -> Self {
+        Self {
+            position: Vec2::ZERO,
+            direction: Vec2::ZERO,
+            size: AlienSize::Small,
+            removed: false,
+            last_shot: 0.0,
+            last_direction: 0.0,
+        }
     }
 }
 

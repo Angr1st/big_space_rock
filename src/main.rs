@@ -161,14 +161,14 @@ struct State {
     random: Xoshiro256PlusPlus,
     lifes: usize,
     score: usize,
-    sounds: Option<Sounds>,
+    sounds: Sounds,
     bloop: usize,
     last_bloop: usize,
     frame: usize,
 }
 
-impl Default for State {
-    fn default() -> Self {
+impl State {
+    fn new(sounds: Sounds) -> Self {
         let seed = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
             .expect("We should be after 1970")
@@ -185,7 +185,7 @@ impl Default for State {
             random: Xoshiro256PlusPlus::seed_from_u64(seed),
             lifes: 3,
             score: 0,
-            sounds: None,
+            sounds,
             bloop: 0,
             last_bloop: 0,
             frame: 0,
@@ -196,13 +196,28 @@ impl Default for State {
 struct Sounds {
     blop_low: Sound,
     blop_high: Sound,
+    thruster: Sound,
+    explosion: Sound,
+    shoot: Sound,
+    asteroid: Sound,
 }
 
 impl Sounds {
-    fn new(blop_low: Sound, blop_high: Sound) -> Self {
+    fn new(
+        blop_low: Sound,
+        blop_high: Sound,
+        thruster: Sound,
+        explosion: Sound,
+        shoot: Sound,
+        asteroid: Sound,
+    ) -> Self {
         Self {
             blop_low,
             blop_high,
+            thruster,
+            explosion,
+            shoot,
+            asteroid,
         }
     }
 }
@@ -442,11 +457,10 @@ fn update(state: &mut State) {
     }
 
     if (&state.ship.status).into() && state.bloop != state.last_bloop {
-        let sound = state.sounds.as_ref().unwrap();
         let sound = if state.bloop % 2 == 1 {
-            &sound.blop_low
+            &state.sounds.blop_low
         } else {
-            &sound.blop_high
+            &state.sounds.blop_high
         };
         play_sound_once(sound);
     }
@@ -661,20 +675,34 @@ fn reset_game(state: &mut State) {
     reset_rocks(state);
 }
 
-#[macroquad::main(window_conf)]
-async fn main() {
-    // debug!("Helloaaaa, world!\n");
-    let mut state = State::default();
-
+async fn load_sounds() -> Sounds {
     let blop_lo = load_sound("./assets/bloop_lo.wav")
         .await
         .expect("Sound bloop_lo not found!");
     let blop_high = load_sound("./assets/bloop_hi.wav")
         .await
         .expect("Sound bloop_hi not found!");
-    let sounds = Sounds::new(blop_lo, blop_high);
+    let thruster = load_sound("./assets/thrust.wav")
+        .await
+        .expect("Sound thruster not found!");
+    let explosion = load_sound("./assets/explode.wav")
+        .await
+        .expect("Sound explosion not found!");
+    let shoot = load_sound("./assets/shoot.wav")
+        .await
+        .expect("Sound shoot not found!");
+    let asteroid = load_sound("./assets/asteroid.wav")
+        .await
+        .expect("Sound asteroid not found!");
 
-    state.sounds = Some(sounds);
+    Sounds::new(blop_lo, blop_high, thruster, explosion, shoot, asteroid)
+}
+
+#[macroquad::main(window_conf)]
+async fn main() {
+    // debug!("Helloaaaa, world!\n");
+    let sounds = load_sounds().await;
+    let mut state = State::new(sounds);
 
     reset_game(&mut state);
 
@@ -828,15 +856,14 @@ fn draw_lines(origin: Vec2, scale: f32, rotation: f32, points: &[Vec2], connect:
 }
 
 //fn draw_ship(pos: Vec2) {}
-
 fn draw_circle_vec2(pos: Vec2, radius: f32, color: Color) {
     draw_circle(pos.x, pos.y, radius, color);
 }
 
-fn draw_circle_line_vec2(pos: Vec2, radius: f32, thickness: f32, color: Color) {
-    draw_circle_lines(pos.x, pos.y, radius, thickness, color);
-}
-
 fn draw_line_vec2(pos1: Vec2, pos2: Vec2, thickness: f32, color: Color) {
     draw_line(pos1.x, pos1.y, pos2.x, pos2.y, thickness, color);
+}
+
+fn draw_circle_line_vec2(pos: Vec2, radius: f32, thickness: f32, color: Color) {
+    draw_circle_lines(pos.x, pos.y, radius, thickness, color);
 }

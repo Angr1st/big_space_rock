@@ -152,6 +152,36 @@ enum AlienSize {
     Small,
 }
 
+impl AlienSize {
+    fn collision_size(&self) -> f32 {
+        match self {
+            AlienSize::Big => SCALE * 0.8,
+            AlienSize::Small => SCALE * 0.5,
+        }
+    }
+
+    fn direction_change_time(&self) -> f32 {
+        match self {
+            AlienSize::Big => 0.85,
+            AlienSize::Small => 0.35,
+        }
+    }
+
+    fn shoot_time(&self) -> f32 {
+        match self {
+            AlienSize::Big => 1.25,
+            AlienSize::Small => 0.75,
+        }
+    }
+
+    fn speed(&self) -> f32 {
+        match self {
+            AlienSize::Big => 3.0,
+            AlienSize::Small => 6.0,
+        }
+    }
+}
+
 struct Alien {
     position: Vec2,
     direction: Vec2,
@@ -183,6 +213,7 @@ struct State {
     rocks: Vec<Rock>,
     particles: Vec<Particle>,
     projectiles: Vec<Projectile>,
+    aliens: Vec<Alien>,
     random: Xoshiro256PlusPlus,
     lifes: usize,
     score: usize,
@@ -207,6 +238,7 @@ impl State {
             rocks: vec![],
             particles: vec![],
             projectiles: vec![],
+            aliens: vec![],
             random: Xoshiro256PlusPlus::seed_from_u64(seed),
             lifes: 3,
             score: 0,

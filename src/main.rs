@@ -910,7 +910,7 @@ fn draw_alien(pos: Vec2, size: &AlienSize) {
     };
     let scale = SCALE * scale;
 
-    const FIRST: [Vec2; 8] = [
+    const MAIN: [Vec2; 8] = [
         Vec2::new(-0.5, 0.0),
         Vec2::new(-0.3, 0.3),
         Vec2::splat(0.3),
@@ -921,16 +921,16 @@ fn draw_alien(pos: Vec2, size: &AlienSize) {
         Vec2::new(0.5, 0.0),
     ];
 
-    draw_lines(pos, scale, 0.0, &FIRST, false);
+    draw_lines(pos, scale, 0.0, &MAIN, false);
 
-    const SECOND: [Vec2; 4] = [
+    const CANOPY: [Vec2; 4] = [
         Vec2::new(-0.2, -0.3),
         Vec2::new(-0.1, -0.5),
         Vec2::new(0.1, -0.5),
         Vec2::new(0.2, -0.3),
     ];
 
-    draw_lines(pos, scale, 0.0, &SECOND, false);
+    draw_lines(pos, scale, 0.0, &CANOPY, false);
 }
 
 fn draw_lines(origin: Vec2, scale: f32, rotation: f32, points: &[Vec2], connect: bool) {

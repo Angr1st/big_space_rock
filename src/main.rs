@@ -672,6 +672,10 @@ fn render(state: &State) {
         draw_space_rock(rock.position, &rock.size, rock.seed);
     }
 
+    for alien in state.aliens.iter() {
+        draw_alien(alien.position, &alien.size);
+    }
+
     let line_points = [Vec2::new(-0.5, 0.0), Vec2::new(0.5, 0.0)];
 
     for particle in state.particles.iter() {
@@ -852,7 +856,7 @@ fn draw_number(number: usize, position: Vec2) {
             Vec2::new(0.5, 0.0),
         ],
     ];
-    //TODO : Draw digits 4:32
+
     if number == 0 {
         draw_lines(
             position,
@@ -897,6 +901,36 @@ fn draw_space_rock(pos: Vec2, size: &RockSize, seed: u64) {
     }
     // debug!("points: {}", points.len());
     draw_lines(pos, size.get_size(), 0.0, &points, true);
+}
+
+fn draw_alien(pos: Vec2, size: &AlienSize) {
+    let scale = match size {
+        AlienSize::Big => 1.0,
+        AlienSize::Small => 0.5,
+    };
+    let scale = SCALE * scale;
+
+    const FIRST: [Vec2; 8] = [
+        Vec2::new(-0.5, 0.0),
+        Vec2::new(-0.3, 0.3),
+        Vec2::splat(0.3),
+        Vec2::new(0.5, 0.0),
+        Vec2::new(0.3, -0.3),
+        Vec2::splat(-0.3),
+        Vec2::new(-0.5, 0.0),
+        Vec2::new(0.5, 0.0),
+    ];
+
+    draw_lines(pos, scale, 0.0, &FIRST, false);
+
+    const SECOND: [Vec2; 4] = [
+        Vec2::new(-0.2, -0.3),
+        Vec2::new(-0.1, -0.5),
+        Vec2::new(0.1, -0.5),
+        Vec2::new(0.2, -0.3),
+    ];
+
+    draw_lines(pos, scale, 0.0, &SECOND, false);
 }
 
 fn draw_lines(origin: Vec2, scale: f32, rotation: f32, points: &[Vec2], connect: bool) {

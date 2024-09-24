@@ -434,6 +434,27 @@ fn update(state: &mut State) {
             }
         }
 
+        // Check for alien v rock collision
+        for alien in state.aliens.iter_mut() {
+            if !alien.removed
+                && rock.position.distance(alien.position)
+                    < rock.size.get_size() * rock.size.get_collision_scale()
+            {
+                alien.removed = true;
+                state.score += rock.size.get_score();
+                let possible_new_rock: Option<Vec<Rock>> = hit_rock(
+                    rock,
+                    &mut state.random,
+                    &mut state.particles,
+                    (alien.direction * alien.size.speed()).try_normalize(),
+                    &state.sounds.asteroid,
+                );
+                if let Some(mut new_rocks) = possible_new_rock {
+                    additional_rocks.append(&mut new_rocks);
+                }
+            }
+        }
+
         // Check for projectile v rock collision
         for projectile in state.projectiles.iter_mut() {
             if projectile.is_alive()

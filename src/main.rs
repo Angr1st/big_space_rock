@@ -423,7 +423,6 @@ fn update(state: &mut State) {
     }
 
     let mut additional_rocks: Vec<Rock> = vec![];
-    // let mut rocks = state.rocks;
     for rock in state.rocks.iter_mut() {
         rock.position = rock.position + rock.velocity;
         rock.position = keep_in_frame(rock.position);
@@ -433,7 +432,6 @@ fn update(state: &mut State) {
             && Vec2::distance(rock.position, state.ship.position)
                 < rock.size.get_size() * rock.size.get_collision_scale()
         {
-            // debug!("You died!");
             state.ship.status = ShipStatus::Dead(DeathTime::new(state.now));
             let new_rocks = hit_rock(
                 rock,
@@ -567,7 +565,6 @@ fn update(state: &mut State) {
     state.aliens.retain(|alien| !alien.removed);
 
     if let ShipStatus::Dead(value) = state.ship.status {
-        // debug!("We dead!");
         if value.death_time == state.now {
             play_sound_once(&state.sounds.explosion);
             splat_dots(
@@ -877,7 +874,6 @@ async fn load_sounds() -> Sounds {
 
 #[macroquad::main(window_conf)]
 async fn main() {
-    // debug!("Helloaaaa, world!\n");
     let sounds = load_sounds().await;
     let mut state = State::new(sounds);
 
@@ -956,8 +952,8 @@ fn draw_number(number: usize, position: Vec2) {
             Vec2::new(-0.5, -0.5),
             Vec2::new(-0.5, 0.0),
             Vec2::new(0.5, 0.0),
-            Vec2::new(-0.5, 0.0), //0.0
-            Vec2::new(-0.5, 0.5), //0.5
+            Vec2::new(-0.5, 0.0),
+            Vec2::new(-0.5, 0.5),
         ],
         &[
             Vec2::new(0.5, 0.5),
@@ -981,7 +977,6 @@ fn draw_number(number: usize, position: Vec2) {
         let mut value = number;
         while value > 0 {
             let number_index = value % 10;
-            // debug!("value: {}, number_index: {}", value, number_index);
             draw_lines(
                 Vec2::new(new_x, position.y),
                 SCALE * 0.8,
@@ -1007,10 +1002,8 @@ fn draw_space_rock(pos: Vec2, size: &RockSize, seed: u64) {
         let angle = i as f32 * (std::f32::consts::TAU / n as f32)
             + (std::f32::consts::PI * 0.125 * random.gen::<f32>());
         let direction = Vec2::from_angle(angle);
-        // debug!("radius: {}, angle: {}", radius, angle);
         points.push(direction * radius);
     }
-    // debug!("points: {}", points.len());
     draw_lines(pos, size.get_size(), 0.0, &points, true);
 }
 
@@ -1062,15 +1055,10 @@ fn draw_lines(origin: Vec2, scale: f32, rotation: f32, points: &[Vec2], connect:
     }
 }
 
-//fn draw_ship(pos: Vec2) {}
 fn draw_circle_vec2(pos: Vec2, radius: f32, color: Color) {
     draw_circle(pos.x, pos.y, radius, color);
 }
 
 fn draw_line_vec2(pos1: Vec2, pos2: Vec2, thickness: f32, color: Color) {
     draw_line(pos1.x, pos1.y, pos2.x, pos2.y, thickness, color);
-}
-
-fn draw_circle_line_vec2(pos: Vec2, radius: f32, thickness: f32, color: Color) {
-    draw_circle_lines(pos.x, pos.y, radius, thickness, color);
 }

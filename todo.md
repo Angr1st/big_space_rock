@@ -7,4 +7,5 @@
 [x] Count score!
 [x] Play sound!
 [x] Draw & Spawn Alien!
+[x] Spawn rocks based on score!
 [x] Done!

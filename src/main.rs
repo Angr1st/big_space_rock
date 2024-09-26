@@ -809,7 +809,9 @@ fn reset_rocks(state: &mut State) {
         state.rocks.clear();
     }
 
-    for _ in 0..20 {
+    let bound = 20 + state.score / 1500;
+
+    for _ in 0..bound {
         let angle = std::f32::consts::TAU * state.random.gen::<f32>();
         let direction = Vec2::from_angle(angle);
         let rock_size: RockSize = state.random.gen::<f32>().into();

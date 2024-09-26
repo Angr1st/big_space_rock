@@ -90,7 +90,6 @@ impl Default for Rock {
     }
 }
 
-// #[derive(PartialEq, Clone, Copy)]
 enum RockSize {
     Big,
     Medium,
@@ -204,6 +203,16 @@ impl Default for Alien {
     }
 }
 
+impl Alien {
+    fn new(position: Vec2, size: AlienSize) -> Self {
+        Self {
+            position,
+            size,
+            ..Default::default()
+        }
+    }
+}
+
 struct State {
     now: f32,
     stage_start: f32,
@@ -217,6 +226,7 @@ struct State {
     random: Xoshiro256PlusPlus,
     lifes: usize,
     score: usize,
+    last_score: usize,
     sounds: Sounds,
     bloop: usize,
     last_bloop: usize,
@@ -242,6 +252,7 @@ impl State {
             random: Xoshiro256PlusPlus::seed_from_u64(seed),
             lifes: 3,
             score: 0,
+            last_score: 0,
             sounds,
             bloop: 0,
             last_bloop: 0,
@@ -328,6 +339,7 @@ struct Projectile {
     position: Vec2,
     velocity: Vec2,
     state: ProjectileState,
+    spawn: f32,
 }
 
 impl Projectile {
@@ -402,6 +414,7 @@ fn update(state: &mut State) {
                 position,
                 velocity,
                 state: ProjectileState::Alive { time_to_live: 1.0 },
+                spawn: state.now,
             };
             state.projectiles.push(projetile);
             play_sound_once(&state.sounds.shoot);
@@ -496,6 +509,52 @@ fn update(state: &mut State) {
                 time_to_live -= state.delta;
                 projectile.state = time_to_live.into();
             }
+
+            for alien in state.aliens.iter_mut() {
+                if !alien.removed
+                    && (state.now - projectile.spawn) < 0.15
+                    && alien.position.distance(projectile.position) < alien.size.collision_size()
+                {
+                    projectile.state = ProjectileState::Dead;
+                    alien.removed = true;
+                }
+            }
+        }
+    }
+
+    for alien in state.aliens.iter_mut() {
+        if !alien.removed
+            && alien.position.distance(state.ship.position) < alien.size.collision_size()
+        {
+            alien.removed = true;
+            state.ship.status = ShipStatus::Dead(DeathTime::new(state.now));
+        }
+
+        if !alien.removed {
+            if (state.now - alien.last_direction) > alien.size.direction_change_time() {
+                alien.last_direction = state.now;
+                let angle = std::f32::consts::TAU * state.random.gen::<f32>();
+                alien.direction = Vec2::new(f32::cos(angle), f32::sin(angle));
+            }
+
+            alien.position = alien.position + alien.direction * alien.size.speed();
+            alien.position = keep_in_frame(alien.position);
+
+            if (state.now - alien.last_shot) > alien.size.shoot_time() {
+                alien.last_shot = state.now;
+                let direction = (state.ship.position - alien.position).normalize_or_zero();
+                state.projectiles.push(Projectile {
+                    position: alien.position + direction * SCALE * 0.55,
+                    velocity: direction * 6.0,
+                    state: ProjectileState::Alive { time_to_live: 2.0 },
+                    spawn: state.now,
+                });
+                play_sound_once(&state.sounds.shoot);
+            }
+        } else {
+            play_sound_once(&state.sounds.asteroid);
+            splat_dots(alien.position, 15, &mut state.particles, &mut state.random);
+            splat_lines(alien.position, 4, &mut state.particles, &mut state.random);
         }
     }
 
@@ -505,6 +564,7 @@ fn update(state: &mut State) {
         .particles
         .retain(|particle| particle.time_to_live > 0.0);
     state.projectiles.retain(|projectile| projectile.is_alive());
+    state.aliens.retain(|alien| !alien.removed);
 
     if let ShipStatus::Dead(value) = state.ship.status {
         // debug!("We dead!");
@@ -547,6 +607,36 @@ fn update(state: &mut State) {
         play_sound_once(sound);
     }
     state.last_bloop = state.bloop;
+
+    if state.aliens.len() == 0 && state.rocks.len() == 0 {
+        reset_rocks(state);
+    }
+
+    if state.last_score / 5000 != state.score / 5000 {
+        let x = if state.random.gen::<bool>() {
+            0.0
+        } else {
+            SIZE.x - SCALE
+        };
+        let y = state.random.gen::<f32>() * SIZE.y;
+        state
+            .aliens
+            .push(Alien::new(Vec2::new(x, y), AlienSize::Big));
+    }
+
+    if state.last_score / 8000 != state.score / 8000 {
+        let x = if state.random.gen::<bool>() {
+            0.0
+        } else {
+            SIZE.x - SCALE
+        };
+        let y = state.random.gen::<f32>() * SIZE.y;
+        state
+            .aliens
+            .push(Alien::new(Vec2::new(x, y), AlienSize::Small));
+    }
+
+    state.last_score = state.score;
 }
 
 fn splat_lines(

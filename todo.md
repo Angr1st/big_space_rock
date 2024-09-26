@@ -5,4 +5,6 @@
 [x] Shot rocks!
 [x] Split rocks!
 [x] Count score!
-[ ] Play sound!
+[x] Play sound!
+[x] Draw & Spawn Alien!
+[x] Done!
